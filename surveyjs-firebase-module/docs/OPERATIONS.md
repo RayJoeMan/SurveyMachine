@@ -6,11 +6,32 @@
 - Firestore denied-request trends and App Check invalid/missing metrics
 - Submission counter versus summary `completed` count
 - Export jobs stuck in `processing` or marked `failed`
+- Outbox items stuck in `pending` or accumulating in `dead`
 - Storage growth and expired export objects
 - Firestore document/storage/function quotas and billing alerts
 - Surveys approaching `responseLimit` or `closesAt`
 
 Do not log response answers to improve diagnostics. Use `requestId`, function name, survey ID, response ID hash, job ID, and error code.
+
+## App Check rollout record
+
+App Check is initialized in the web client and callables enforce it only when `ENFORCE_APP_CHECK=true` (default `false`), so local development and first deployment are never accidentally locked out.
+
+Rollout sequence (staging, then production):
+
+1. Register the web app with reCAPTCHA Enterprise and set `VITE_RECAPTCHA_ENTERPRISE_SITE_KEY`.
+2. Deploy with `ENFORCE_APP_CHECK=false` and observe App Check metrics for valid and invalid traffic.
+3. Test every respondent/admin callable in staging with `ENFORCE_APP_CHECK=true`.
+4. Set `ENFORCE_APP_CHECK=true`, redeploy Functions, and re-run the staging acceptance matrix.
+5. Enable service-level enforcement (Firestore, Storage, Auth) separately and progressively once metrics are safe.
+
+Emergency disable: revert `ENFORCE_APP_CHECK=false` in Functions parameters and redeploy; this is a documented, reversible parameter change and does not weaken authorization or validation.
+
+## Abuse controls
+
+- Rate limits (hash-only, IP-derived per caller) guard `submitSurveyResponseV1` (20 / 10 min), `saveSurveyProgressV1` (120 / 10 min), and `createSurveyExportV1` (10 / 60 min). Counter documents live under `rateLimits/` and store only hashes — never raw IP addresses. Limits are abuse damping with bounded false positives; raising them must trade off spam risk against legitimate volume.
+- File-question uploads (`survey-uploads/**`) remain denied until the signed-upload, quarantine/review, quota, retention, and binding design is implemented and tested.
+- Monitor rate-limit rejections as a health signal; sudden spikes may indicate an attack or a misconfigured proxy changing caller identity.
 
 ## Disable collection
 

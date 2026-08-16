@@ -1,17 +1,24 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { defineBoolean, defineInt } from "firebase-functions/params";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
 import { ExportSurveyInputSchema } from "../contracts";
 import { safeAudit } from "../core/audit";
 import { parseInput } from "../core/errors";
 import { db, getDefaultBucket } from "../core/firebase";
 import { assertRole } from "../core/permissions";
+import { enforceRateLimit, rateLimitKey } from "../core/rateLimit";
 import { responsesToCsv } from "./csv";
 
 const enforceAppCheck = defineBoolean("ENFORCE_APP_CHECK", { default: false });
 const exportUrlTtlMinutes = defineInt("EXPORT_URL_TTL_MINUTES", { default: 15 });
 const exportLimit = 5_000;
+
+function callerIdentity(request: CallableRequest): string {
+  const remoteAddress =
+    request.rawRequest?.ip ?? request.rawRequest?.socket?.remoteAddress ?? "unknown";
+  return `${remoteAddress}|${request.auth?.uid ?? "anon"}`;
+}
 
 export const createSurveyExportV1 = onCall(
   { enforceAppCheck, cors: true, timeoutSeconds: 120, memory: "512MiB" },
@@ -23,6 +30,12 @@ export const createSurveyExportV1 = onCall(
       "survey_admin",
       "report_viewer",
     ]);
+    await enforceRateLimit({
+      limit: 10,
+      windowMs: 60 * 60_000,
+      key: rateLimitKey(`export:${input.orgId}:${input.surveyId}`, callerIdentity(request)),
+      label: "Survey export",
+    });
 
     const surveyRef = db.doc(`organizations/${input.orgId}/surveys/${input.surveyId}`);
     const survey = await surveyRef.get();

@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { defineBoolean } from "firebase-functions/params";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
 import { SaveProgressInputSchema, SubmitResponseInputSchema } from "../contracts";
 import { parseInput } from "../core/errors";
 import { db } from "../core/firebase";
+import { enforceRateLimit, rateLimitKey } from "../core/rateLimit";
 import {
   loadOpenPublicSurvey,
   responseDocumentId,
@@ -14,10 +15,23 @@ import {
 
 const enforceAppCheck = defineBoolean("ENFORCE_APP_CHECK", { default: false });
 
+const SUBMIT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+const PROGRESS_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
+
 function assertRespondentAccess(requireAuthentication: boolean, uid: string | undefined): void {
   if (requireAuthentication && !uid) {
     throw new HttpsError("unauthenticated", "This survey requires sign-in.");
   }
+}
+
+/**
+ * Bounded abuse-control identity: a hash of the caller's remote address plus
+ * their uid (when signed in). Only the SHA-256 hash is ever stored.
+ */
+function callerIdentity(request: CallableRequest): string {
+  const remoteAddress =
+    request.rawRequest?.ip ?? request.rawRequest?.socket?.remoteAddress ?? "unknown";
+  return `${remoteAddress}|${request.auth?.uid ?? "anon"}`;
 }
 
 export const saveSurveyProgressV1 = onCall({ enforceAppCheck, cors: true }, async (request) => {
@@ -28,6 +42,11 @@ export const saveSurveyProgressV1 = onCall({ enforceAppCheck, cors: true }, asyn
   if (!survey.settings.saveProgress) {
     throw new HttpsError("failed-precondition", "Remote progress saving is disabled.");
   }
+  await enforceRateLimit({
+    ...PROGRESS_RATE_LIMIT,
+    key: rateLimitKey(`progress:${input.publicSurveyId}`, callerIdentity(request)),
+    label: "Survey progress saving",
+  });
   const answers = sanitizeSurveyAnswers(survey.schema, input.answers, false);
   const responseId = responseDocumentId(input.publicSurveyId, input.clientSubmissionId);
   const responseRef = db.doc(
@@ -70,6 +89,11 @@ export const submitSurveyResponseV1 = onCall({ enforceAppCheck, cors: true }, as
   const input = parseInput(SubmitResponseInputSchema, request.data);
   const survey = await loadOpenPublicSurvey(input.publicSurveyId);
   assertRespondentAccess(survey.settings.requireAuthentication, request.auth?.uid);
+  await enforceRateLimit({
+    ...SUBMIT_RATE_LIMIT,
+    key: rateLimitKey(`submit:${input.publicSurveyId}`, callerIdentity(request)),
+    label: "Survey submission",
+  });
   const answers = sanitizeSurveyAnswers(survey.schema, input.answers, true);
   const responseId = responseDocumentId(input.publicSurveyId, input.clientSubmissionId);
   const responseRef = db.doc(

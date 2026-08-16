@@ -13,8 +13,14 @@ A runnable React/TypeScript survey module built around the free SurveyJS Form Li
 - Draft, preview, publish, version, close, and public-projection lifecycle
 - Role-gated administration and reports
 - Aggregate completion metrics and controlled CSV exports
+- Question-level aggregate distributions (rating, choice, matrix; free text stays private)
 - CSV formula-injection protection
+- Optimistic-concurrency draft saves with clear conflict handling
+- Device-aware editor preview and publish review
 - Firebase App Check integration hook with staged enforcement
+- Hash-only, IP-derived rate limiting on submit, progress save, and export
+- Outbox foundation with signed webhook delivery, backoff, and dead-letter visibility
+- Trusted real-environment bootstrap and environment validation
 - Firestore and Storage deny-by-default rules
 - Emulator-backed authorization tests
 - Local seed survey and local administrator
@@ -26,9 +32,8 @@ A runnable React/TypeScript survey module built around the free SurveyJS Form Li
 - File-question uploads
 - Email/SMS invitations and reminders
 - Single-use links and respondent panel management
-- Webhook delivery and retry queue
-- Scheduled retention/deletion jobs
-- Question-level precomputed charts
+- Outbound webhook consumers and provider integrations beyond the built-in signed delivery
+- Scheduled retention/deletion jobs, Storage lifecycle, and Firestore TTL activation
 - Production App Check enforcement, monitoring, DNS, or deployment
 
 These expansion points are specified in `docs/BUILD-PLAN.md` and `prompts/`.
