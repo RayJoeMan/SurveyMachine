@@ -68,6 +68,13 @@ async function seed(enabled = true) {
     await setDoc(doc(context.firestore(), `organizations/${orgId}/members/outsider`), {
       roles: [],
     });
+    await setDoc(doc(context.firestore(), `organizations/${orgId}/members/admin`), {
+      roles: ["org_admin"],
+    });
+    await setDoc(
+      doc(context.firestore(), `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`),
+      { eventId: "event-1", status: "pending", attempts: 0 },
+    );
   });
 }
 
@@ -126,6 +133,18 @@ describe("Firestore private boundary", () => {
     await seed();
     const firestore = testEnv.authenticatedContext("outsider").firestore();
     await assertFails(getDoc(doc(firestore, `organizations/${orgId}/surveys/${surveyId}`)));
+  });
+
+  it("allows admins to see outbox events but editors cannot", async () => {
+    await seed();
+    const adminFirestore = testEnv.authenticatedContext("admin").firestore();
+    await assertSucceeds(
+      getDoc(doc(adminFirestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`)),
+    );
+    const editorFirestore = testEnv.authenticatedContext("editor").firestore();
+    await assertFails(
+      getDoc(doc(editorFirestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`)),
+    );
   });
 });
 

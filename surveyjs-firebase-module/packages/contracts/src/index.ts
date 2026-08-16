@@ -133,6 +133,30 @@ export const CallableResultSchema = z.object({
   requestId: z.string().min(1),
 });
 
+export const OutboxStatusSchema = z.enum(["pending", "processing", "delivered", "failed", "dead"]);
+export type OutboxStatus = z.infer<typeof OutboxStatusSchema>;
+
+export const OutboxEventSchema = z.object({
+  eventId: z.string().min(1).max(120),
+  eventType: z.string().min(1).max(80),
+  orgId: OrganizationIdSchema,
+  surveyId: SurveyIdSchema.optional(),
+  idempotencyKey: z.string().min(1).max(200),
+  status: OutboxStatusSchema,
+  attempts: z.number().int().nonnegative(),
+  nextAttemptAt: z.iso.datetime().nullable(),
+  payload: z.record(z.string(), z.unknown()),
+  error: z.string().max(500).nullable().default(null),
+  createdAt: z.unknown().optional(),
+  updatedAt: z.unknown().optional(),
+});
+export type OutboxEvent = z.infer<typeof OutboxEventSchema>;
+
+export const OUTBOX_MAX_ATTEMPTS = 5;
+
+/** Suggested placeholder for providers that still require credentials. */
+export const OUTBOX_PROVIDER_SECRET_PLACEHOLDER = "configured-in-secret-manager";
+
 export const MAX_RESPONSE_BYTES = 700_000;
 export const MAX_SURVEY_SCHEMA_BYTES = 700_000;
 

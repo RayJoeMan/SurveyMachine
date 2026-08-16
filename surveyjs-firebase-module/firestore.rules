@@ -99,6 +99,11 @@ service cloud.firestore {
           allow list: if hasAnyRole(orgId, ['org_admin', 'survey_admin']);
           allow create, update, delete: if false;
         }
+
+        match /outbox/{eventId} {
+          allow get, list: if hasAnyRole(orgId, ['org_admin', 'survey_admin']);
+          allow create, update, delete: if false;
+        }
       }
 
       match /auditLogs/{auditId} {
