@@ -6,8 +6,10 @@ import { AdminShell } from "@/modules/admin/components/AdminShell";
 import {
   createSurveyExport,
   getSurvey,
+  getSurveyQuestionAggregates,
   getSurveySummary,
   type PrivateSurvey,
+  type QuestionAggregates,
   type SurveySummary,
 } from "@/modules/admin/data/admin.repository";
 import { LoadingState } from "@/shared/AsyncState";
@@ -17,6 +19,7 @@ export function ReportPage() {
   const { user, loading: authLoading } = useAuth();
   const [survey, setSurvey] = useState<PrivateSurvey | null>(null);
   const [summary, setSummary] = useState<SurveySummary | null>(null);
+  const [questionAggregates, setQuestionAggregates] = useState<QuestionAggregates>({});
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
@@ -26,10 +29,12 @@ export function ReportPage() {
     void Promise.all([
       getSurvey(env.defaultOrgId, surveyId),
       getSurveySummary(env.defaultOrgId, surveyId),
+      getSurveyQuestionAggregates(env.defaultOrgId, surveyId),
     ])
-      .then(([loadedSurvey, loadedSummary]) => {
+      .then(([loadedSurvey, loadedSummary, loadedAggregates]) => {
         setSurvey(loadedSurvey);
         setSummary(loadedSummary);
+        setQuestionAggregates(loadedAggregates);
       })
       .catch((loadError: unknown) => {
         console.error("Report load failed", loadError);
@@ -104,11 +109,49 @@ export function ReportPage() {
       </div>
 
       <section className="report-note">
-        <h2>Reporting expansion point</h2>
+        <h2>Question distributions</h2>
         <p>
-          Add question-level distributions to precomputed aggregate documents. Do not download every
-          response to the browser for client-side aggregation.
+          Precomputed on the server from completed responses. Free-text answers are never copied
+          here; raw responses remain available only through controlled export.
         </p>
+        {Object.keys(questionAggregates).length === 0 ? (
+          <p className="empty-panel">
+            No aggregate data yet — publish a survey and collect responses.
+          </p>
+        ) : (
+          <div className="distribution-list">
+            {Object.entries(questionAggregates).map(([name, aggregate]) => {
+              const counts = aggregate.counts || {};
+              const total = aggregate.total || 0;
+              const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+              return (
+                <article className="distribution-card" key={name}>
+                  <header>
+                    <strong>{name}</strong>
+                    <span>
+                      {aggregate.questionType || "question"} · {total} response
+                      {total === 1 ? "" : "s"}
+                    </span>
+                  </header>
+                  <ul>
+                    {entries.map(([value, count]) => (
+                      <li key={value}>
+                        <span className="distribution-label">{value}</span>
+                        <span className="distribution-bar-track">
+                          <span
+                            className="distribution-bar"
+                            style={{ width: `${total ? Math.round((count / total) * 100) : 0}%` }}
+                          />
+                        </span>
+                        <span className="distribution-count">{count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
     </AdminShell>
   );

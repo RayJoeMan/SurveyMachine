@@ -44,6 +44,21 @@ Before production, choose and document:
 
 Deletion must be server-side, scoped to an exact organization/survey/response, dry-run capable for bulk jobs, and audited. Deleting a survey definition must not orphan uninterpretable responses; retain matching version schemas until responses are gone.
 
+## Retention policy (proposed defaults — confirm before production)
+
+The scaffold does not silently choose a policy. These values are the recommended starting point for a youth-community survey deployment and must be confirmed by the data owner before collection starts:
+
+| Data                                     | Proposed default                                                                      | Mechanism                                               |
+| ---------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Completed responses                      | Keep while the survey report is active; delete on the survey's documented end-of-life | Scheduled batch deletion (server-side, dry-run + audit) |
+| Partial responses (`in_progress`)        | 90 days after last update                                                             | Scheduled batch deletion                                |
+| Export objects (`survey-exports/**`)     | 7 days after generation                                                               | Storage object lifecycle or scheduled cleanup           |
+| Trigger event receipts (`eventReceipts`) | 30 days                                                                               | Firestore TTL on `expiresAt`                            |
+| Audit logs                               | 2 years                                                                               | Scheduled archival/deletion                             |
+| Version schemas                          | Until the last matching response is deleted                                           | Never auto-delete                                       |
+
+Implementing the scheduled jobs, the storage lifecycle rule, and the Firestore TTL is a production task (see `prompts/03-reporting-retention.md`). Until then, exports and receipts accumulate and must be reviewed manually. Deletion jobs must be exact-scope, dry-run capable, batched, audited, and must support legal/operational holds.
+
 ## Incident triage
 
 1. Disable the affected organization or close the survey.

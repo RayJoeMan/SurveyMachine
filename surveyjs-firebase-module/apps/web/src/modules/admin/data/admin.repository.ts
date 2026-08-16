@@ -37,6 +37,14 @@ export interface SurveySummary {
   lastResponseAt?: unknown;
 }
 
+export interface QuestionAggregate {
+  questionType?: string;
+  total?: number;
+  counts?: Record<string, number>;
+}
+
+export type QuestionAggregates = Record<string, QuestionAggregate>;
+
 interface CallableBaseResult {
   ok: true;
   requestId: string;
@@ -94,6 +102,22 @@ export async function getSurveySummary(orgId: string, surveyId: string): Promise
   return snapshot.exists()
     ? (snapshot.data() as SurveySummary)
     : { completed: 0, inProgress: 0, totalDurationMs: 0 };
+}
+
+export async function getSurveyQuestionAggregates(
+  orgId: string,
+  surveyId: string,
+): Promise<QuestionAggregates> {
+  const snapshot = await getDoc(
+    doc(db, "organizations", orgId, "surveys", surveyId, "aggregates", "questions"),
+  );
+  if (!snapshot.exists()) return {};
+  const questions: QuestionAggregates = {};
+  for (const [key, value] of Object.entries(snapshot.data() ?? {})) {
+    if (key === "updatedAt") continue;
+    questions[key] = value as QuestionAggregate;
+  }
+  return questions;
 }
 
 export async function upsertSurvey(input: UpsertSurveyInput): Promise<SaveSurveyResult> {
