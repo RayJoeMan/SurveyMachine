@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { LoadingState } from "@/shared/AsyncState";
 
 export function LoginPage() {
   const { user, loading, signInWithEmail, signInWithGoogle } = useAuth();
-  const [email, setEmail] = useState("admin@example.test");
-  const [password, setPassword] = useState("LocalOnly123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [params] = useSearchParams();
@@ -25,7 +25,7 @@ export function LoginPage() {
       navigate(returnTo, { replace: true });
     } catch (signInError) {
       console.error("Sign in failed", signInError);
-      setError("Sign-in failed. Check the account and password, then try again.");
+      setError("Sign-in failed. Check the email and password, then try again.");
     } finally {
       setSubmitting(false);
     }
@@ -49,14 +49,15 @@ export function LoginPage() {
     <main className="login-page">
       <form className="login-card" onSubmit={handleEmailSignIn}>
         <span className="eyebrow">Staff access</span>
-        <h1>Survey administration</h1>
-        <p>Use the seeded local account below or your configured Google account.</p>
+        <h1>Sign in to Survey Machine</h1>
+        <p>Sign in with your organization account to manage surveys and reports.</p>
         <label>
           Email
           <input
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             type="email"
+            autoComplete="email"
             required
           />
         </label>
@@ -66,9 +67,13 @@ export function LoginPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             type="password"
+            autoComplete="current-password"
             required
           />
         </label>
+        <Link className="login-help" to="/forgot-password">
+          Forgot password?
+        </Link>
         {error && (
           <p className="form-error" role="alert">
             {error}
@@ -86,7 +91,8 @@ export function LoginPage() {
           Sign in with Google
         </button>
         <p className="fine-print">
-          The sample password is for the local Auth emulator only. Never reuse it in production.
+          By continuing you agree to our <Link to="/legal/terms">Terms of Service</Link> and{" "}
+          <Link to="/legal/privacy">Privacy Policy</Link>.
         </p>
       </form>
     </main>

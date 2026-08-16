@@ -30,6 +30,17 @@ const TakeSurveyPage = lazy(() =>
     default: module.TakeSurveyPage,
   })),
 );
+const TermsOfService = lazy(() =>
+  import("@/modules/legal/LegalPages").then((module) => ({ default: module.TermsOfService })),
+);
+const PrivacyPolicy = lazy(() =>
+  import("@/modules/legal/LegalPages").then((module) => ({ default: module.PrivacyPolicy })),
+);
+const RefundsAndCancellations = lazy(() =>
+  import("@/modules/legal/LegalPages").then((module) => ({
+    default: module.RefundsAndCancellations,
+  })),
+);
 
 export function App() {
   return (
@@ -39,6 +50,9 @@ export function App() {
         <Route path="/s/:publicSurveyId" element={<TakeSurveyPage />} />
         <Route path="/thanks/:publicSurveyId" element={<SurveyCompletePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/legal/terms" element={<TermsOfService />} />
+        <Route path="/legal/privacy" element={<PrivacyPolicy />} />
+        <Route path="/legal/refunds" element={<RefundsAndCancellations />} />
         <Route path="/admin" element={<AdminHomePage />} />
         <Route path="/admin/surveys/new" element={<SurveyEditorPage />} />
         <Route path="/admin/surveys/:surveyId/edit" element={<SurveyEditorPage />} />

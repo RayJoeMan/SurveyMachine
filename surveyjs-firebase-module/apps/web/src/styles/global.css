@@ -158,6 +158,54 @@ textarea:focus-visible {
   color: var(--muted);
   font-size: 0.82rem !important;
 }
+.landing-footer {
+  display: flex;
+  gap: 1.25rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+.landing-footer a {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.login-help {
+  justify-self: start;
+  color: var(--navy);
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.legal-page {
+  width: min(760px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2.5rem 0 4rem;
+}
+.legal-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: white;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+}
+.legal-updated {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 1.25rem;
+}
+.legal-body {
+  display: grid;
+  gap: 1.1rem;
+}
+.legal-body h2 {
+  margin: 0.5rem 0 0;
+  font-size: 1.05rem;
+}
+.legal-body p {
+  margin: 0;
+  line-height: 1.6;
+}
 
 .login-card {
   width: min(460px, 100%);

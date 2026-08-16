@@ -12,6 +12,7 @@ ui-debug.log
 .env.*
 !.env.example
 !.env.development
+!.env.test
 coverage/
 playwright-report/
 test-results/
