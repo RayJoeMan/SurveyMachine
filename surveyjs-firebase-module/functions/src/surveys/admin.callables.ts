@@ -27,7 +27,12 @@ export const upsertSurveyV1 = onCall({ enforceAppCheck, cors: true }, async (req
   const input = parseInput(UpsertSurveyInputSchema, request.data);
   await Promise.all([
     assertModuleEnabled(input.orgId),
-    assertRole(input.orgId, request.auth?.uid, ["org_admin", "survey_admin", "survey_editor"]),
+    assertRole(
+      input.orgId,
+      request.auth?.uid,
+      ["org_admin", "survey_admin", "survey_editor"],
+      request.auth?.token?.email,
+    ),
   ]);
   validateSurveyDefinition(input.schema);
 
@@ -86,7 +91,12 @@ export const publishSurveyV1 = onCall({ enforceAppCheck, cors: true }, async (re
   const input = parseInput(SurveyActionInputSchema, request.data);
   await Promise.all([
     assertModuleEnabled(input.orgId),
-    assertRole(input.orgId, request.auth?.uid, ["org_admin", "survey_admin"]),
+    assertRole(
+      input.orgId,
+      request.auth?.uid,
+      ["org_admin", "survey_admin"],
+      request.auth?.token?.email,
+    ),
   ]);
   const surveyRef = db.doc(`organizations/${input.orgId}/surveys/${input.surveyId}`);
   const publicRef = db.doc(`publicSurveys/${input.surveyId}`);
@@ -150,7 +160,12 @@ export const publishSurveyV1 = onCall({ enforceAppCheck, cors: true }, async (re
 export const closeSurveyV1 = onCall({ enforceAppCheck, cors: true }, async (request) => {
   const requestId = randomUUID();
   const input = parseInput(SurveyActionInputSchema, request.data);
-  await assertRole(input.orgId, request.auth?.uid, ["org_admin", "survey_admin"]);
+  await assertRole(
+    input.orgId,
+    request.auth?.uid,
+    ["org_admin", "survey_admin"],
+    request.auth?.token?.email,
+  );
   const surveyRef = db.doc(`organizations/${input.orgId}/surveys/${input.surveyId}`);
   const publicRef = db.doc(`publicSurveys/${input.surveyId}`);
 
@@ -206,7 +221,12 @@ export const deleteSurveyV1 = onCall(
   async (request) => {
     const requestId = randomUUID();
     const input = parseInput(SurveyActionInputSchema, request.data);
-    await assertRole(input.orgId, request.auth?.uid, ["org_admin", "survey_admin"]);
+    await assertRole(
+      input.orgId,
+      request.auth?.uid,
+      ["org_admin", "survey_admin"],
+      request.auth?.token?.email,
+    );
 
     const surveyRef = db.doc(`organizations/${input.orgId}/surveys/${input.surveyId}`);
     const survey = await surveyRef.get();

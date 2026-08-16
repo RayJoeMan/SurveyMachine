@@ -72,14 +72,27 @@ export const PublicSurveySchema = z.object({
 });
 export type PublicSurvey = z.infer<typeof PublicSurveySchema>;
 
-export const ResponseMetadataSchema = z
-  .object({
-    source: z.string().max(80).optional(),
-    campaign: z.string().max(120).optional(),
-    medium: z.string().max(80).optional(),
-    referrerHost: z.string().max(255).optional(),
-  })
-  .strict();
+export const ResponseMetadataSchema = z.preprocess(
+  (value) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      // The callable protocol serializes absent optional fields as null;
+      // normalize null/undefined entries away before validation so optional
+      // metadata keys do not fail strict parsing.
+      return Object.fromEntries(
+        Object.entries(value).filter(([, entry]) => entry !== null && entry !== undefined),
+      );
+    }
+    return value;
+  },
+  z
+    .object({
+      source: z.string().max(80).optional(),
+      campaign: z.string().max(120).optional(),
+      medium: z.string().max(80).optional(),
+      referrerHost: z.string().max(255).optional(),
+    })
+    .strict(),
+);
 export type ResponseMetadata = z.infer<typeof ResponseMetadataSchema>;
 
 const answersSchema = z.record(z.string().max(160), z.unknown());
@@ -151,6 +164,18 @@ const RESERVED_ORG_IDS = new Set([
 
 export function isReservedOrgId(orgId: string): boolean {
   return RESERVED_ORG_IDS.has(orgId);
+}
+
+/**
+ * Account emails with organization-wide super-admin access. These identities
+ * bypass role checks (but never client-side writes). For commercialization this
+ * should move to a trusted configuration document; the constant keeps the
+ * default deployment honest and reviewable.
+ */
+export const SUPER_ADMIN_EMAILS = ["joermnd@gmail.com"] as const;
+
+export function isSuperAdminEmail(email: string | undefined | null): boolean {
+  return Boolean(email && (SUPER_ADMIN_EMAILS as readonly string[]).includes(email));
 }
 
 /** Deterministic slug used to derive a default organization ID from its name. */

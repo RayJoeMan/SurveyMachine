@@ -25,11 +25,12 @@ export const createSurveyExportV1 = onCall(
   async (request) => {
     const requestId = randomUUID();
     const input = parseInput(ExportSurveyInputSchema, request.data);
-    await assertRole(input.orgId, request.auth?.uid, [
-      "org_admin",
-      "survey_admin",
-      "report_viewer",
-    ]);
+    await assertRole(
+      input.orgId,
+      request.auth?.uid,
+      ["org_admin", "survey_admin", "report_viewer"],
+      request.auth?.token?.email,
+    );
     await enforceRateLimit({
       limit: 10,
       windowMs: 60 * 60_000,

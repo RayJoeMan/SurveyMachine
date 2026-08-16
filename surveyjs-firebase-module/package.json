@@ -19,6 +19,7 @@
     "build:web:stage": "npm run build:stage --workspace @survey-module/web",
     "build:functions": "npm run build --workspace @survey-module/functions",
     "bootstrap": "tsx scripts/bootstrap-org.ts",
+    "smoke:provision": "tsx scripts/smoke-provision.ts",
     "check:env": "node scripts/check-env.mjs",
     "check:env:stage": "node scripts/check-env.mjs stage",
     "deploy:dev": "npm run build:web:stage && firebase deploy --only hosting:dev-survey-machine",

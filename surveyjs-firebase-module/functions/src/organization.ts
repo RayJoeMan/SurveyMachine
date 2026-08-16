@@ -93,7 +93,7 @@ export const exportOrganizationDataV1 = onCall(
   async (request) => {
     const requestId = randomUUID();
     const input = parseInput(ExportOrganizationDataInputSchema, request.data);
-    await assertRole(input.orgId, request.auth?.uid, ["org_admin"]);
+    await assertRole(input.orgId, request.auth?.uid, ["org_admin"], request.auth?.token?.email);
 
     const orgRef = db.doc(`organizations/${input.orgId}`);
     const [org, entitlement, members, surveys] = await Promise.all([

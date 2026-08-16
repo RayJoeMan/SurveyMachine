@@ -1,5 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
-import { collectionGroup, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  collectionGroup,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import {
   createContext,
   useCallback,
@@ -9,9 +17,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { isSuperAdminEmail } from "@/contracts";
 import { useAuth } from "@/auth/AuthProvider";
 import { env } from "@/config/env";
 import { db } from "@/firebase/client";
+
+/** Roles granted to a super-admin account for every organization. */
+const SUPER_ADMIN_ROLES = ["org_admin", "survey_admin", "survey_editor", "report_viewer"];
 
 export interface OrgMembership {
   orgId: string;
@@ -62,13 +74,24 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       setLoading(true);
       try {
-        const snapshot = await getDocs(
-          query(collectionGroup(db, "members"), where("uid", "==", user.uid)),
-        );
+        // Super-admin accounts see every organization with full roles; other
+        // users see only the organizations they are a member of.
+        const isSuperAdmin = isSuperAdminEmail(user.email);
+        const snapshot = isSuperAdmin
+          ? await getDocs(collection(db, "organizations"))
+          : await getDocs(
+              query(collectionGroup(db, "members"), where("uid", "==", user.uid)),
+            );
         const loaded = await Promise.all(
-          snapshot.docs.map(async (memberDoc): Promise<OrgMembership> => {
-            const orgId = memberDoc.id;
+          snapshot.docs.map(async (snap): Promise<OrgMembership> => {
+            const orgId = snap.id;
             let name = orgId;
+            if (isSuperAdmin) {
+              if (typeof snap.get("name") === "string") {
+                name = snap.get("name") as string;
+              }
+              return { orgId, name, roles: SUPER_ADMIN_ROLES };
+            }
             try {
               const organization = await getDoc(doc(db, "organizations", orgId));
               if (organization.exists() && typeof organization.get("name") === "string") {
@@ -80,9 +103,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
             return {
               orgId,
               name,
-              roles: Array.isArray(memberDoc.get("roles"))
-                ? (memberDoc.get("roles") as string[])
-                : [],
+              roles: Array.isArray(snap.get("roles")) ? (snap.get("roles") as string[]) : [],
             };
           }),
         );

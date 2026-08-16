@@ -6,6 +6,10 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function isSuperAdmin() {
+      return signedIn() && request.auth.token.email == 'joermnd@gmail.com';
+    }
+
     function hasAnyRole(orgId, requiredRoles) {
       let member = firestore.get(
         /databases/(default)/documents/organizations/$(orgId)/members/$(request.auth.uid)
@@ -14,7 +18,7 @@ service firebase.storage {
     }
 
     match /survey-exports/{orgId}/{surveyId}/{fileName} {
-      allow read: if hasAnyRole(orgId, ['org_admin', 'survey_admin', 'report_viewer']);
+      allow read: if hasAnyRole(orgId, ['org_admin', 'survey_admin', 'report_viewer']) || isSuperAdmin();
       allow write: if false;
     }
 

@@ -63,10 +63,15 @@ export function collectResponseMetadata(): ResponseMetadata {
     referrerHost = undefined;
   }
 
-  return {
-    source: params.get("utm_source")?.slice(0, 80) || undefined,
-    campaign: params.get("utm_campaign")?.slice(0, 120) || undefined,
-    medium: params.get("utm_medium")?.slice(0, 80) || undefined,
-    referrerHost,
-  };
+  // Omit absent keys entirely so the callable protocol does not serialize
+  // undefined as null into a strict schema.
+  const metadata: ResponseMetadata = {};
+  const source = params.get("utm_source")?.slice(0, 80);
+  const campaign = params.get("utm_campaign")?.slice(0, 120);
+  const medium = params.get("utm_medium")?.slice(0, 80);
+  if (source) metadata.source = source;
+  if (campaign) metadata.campaign = campaign;
+  if (medium) metadata.medium = medium;
+  if (referrerHost) metadata.referrerHost = referrerHost;
+  return metadata;
 }
