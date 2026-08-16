@@ -8,8 +8,14 @@ setGlobalOptions({
   memory: "256MiB",
 });
 
-export { closeSurveyV1, publishSurveyV1, upsertSurveyV1 } from "./surveys/admin.callables";
+export {
+  closeSurveyV1,
+  publishSurveyV1,
+  upsertSurveyV1,
+  deleteSurveyV1,
+} from "./surveys/admin.callables";
 export { saveSurveyProgressV1, submitSurveyResponseV1 } from "./surveys/respondent.callables";
 export { createSurveyExportV1 } from "./reporting/export.callable";
+export { exportOrganizationDataV1 } from "./organization";
 export { updateSurveySummaryV1 } from "./reporting/response.trigger";
 export { processOutboxV1 } from "./reporting/outbox";

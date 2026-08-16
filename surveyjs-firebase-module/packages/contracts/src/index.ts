@@ -123,6 +123,11 @@ export const SurveyActionInputSchema = z.object({
 });
 export type SurveyActionInput = z.input<typeof SurveyActionInputSchema>;
 
+export const ExportOrganizationDataInputSchema = z.object({
+  orgId: OrganizationIdSchema,
+});
+export type ExportOrganizationDataInput = z.input<typeof ExportOrganizationDataInputSchema>;
+
 export const ExportSurveyInputSchema = SurveyActionInputSchema.extend({
   format: z.literal("csv").default("csv"),
 });

@@ -3,7 +3,11 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useActiveOrg } from "@/auth/OrgProvider";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
-import { listSurveys, type PrivateSurvey } from "@/modules/admin/data/admin.repository";
+import {
+  exportOrganizationData,
+  listSurveys,
+  type PrivateSurvey,
+} from "@/modules/admin/data/admin.repository";
 import { LoadingState } from "@/shared/AsyncState";
 
 function CopyPublicLink({ surveyId }: { surveyId: string }) {
@@ -31,6 +35,7 @@ export function AdminHomePage() {
   const [surveys, setSurveys] = useState<PrivateSurvey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!user || !activeOrgId) return;
@@ -56,6 +61,23 @@ export function AdminHomePage() {
     };
   }, [activeOrgId, user]);
 
+  const canExportOrganization = Boolean(activeOrg?.roles.includes("org_admin"));
+
+  async function handleExportOrg() {
+    if (!activeOrgId) return;
+    setExporting(true);
+    setError("");
+    try {
+      const result = await exportOrganizationData({ orgId: activeOrgId });
+      window.location.assign(result.downloadUrl);
+    } catch (exportError) {
+      console.error("Organization export failed", exportError);
+      setError("The organization export could not be created. Verify your role and try again.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (authLoading || orgLoading) return <LoadingState label="Checking access…" />;
   if (!user) return <Navigate to="/login" replace />;
   if (!activeOrgId) {
@@ -64,8 +86,8 @@ export function AdminHomePage() {
         <div className="empty-panel">
           <h1>No organization selected</h1>
           <p>
-            Your account is not a member of any organization yet. An administrator must create
-            your organization with the bootstrap tool and grant your membership.
+            Your account is not a member of any organization yet. An administrator must create your
+            organization with the bootstrap tool and grant your membership.
           </p>
         </div>
       </AdminShell>
@@ -82,9 +104,21 @@ export function AdminHomePage() {
             Create a draft, test its branching, publish a public projection, and review results.
           </p>
         </div>
-        <Link className="button" to="/admin/surveys/new">
-          New survey
-        </Link>
+        <div className="page-actions">
+          {canExportOrganization && (
+            <button
+              className="button button--secondary"
+              type="button"
+              disabled={exporting}
+              onClick={() => void handleExportOrg()}
+            >
+              {exporting ? "Preparing export…" : "Export organization data"}
+            </button>
+          )}
+          <Link className="button" to="/admin/surveys/new">
+            New survey
+          </Link>
+        </div>
       </div>
 
       {loading ? (

@@ -8,6 +8,7 @@ import { useActiveOrg } from "@/auth/OrgProvider";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import {
   closeSurvey,
+  deleteSurvey,
   getSurvey,
   isDraftConflictError,
   publishSurvey,
@@ -235,11 +236,7 @@ export function SurveyEditorPage() {
   }
 
   async function handleClose() {
-    if (
-      !surveyId ||
-      !activeOrgId ||
-      !window.confirm("Close this survey and stop accepting new responses?")
-    ) {
+    if (!surveyId || !activeOrgId || !window.confirm("Close this survey and stop accepting new responses?")) {
       return;
     }
     setSaving(true);
@@ -251,6 +248,25 @@ export function SurveyEditorPage() {
     } catch (closeError) {
       console.error("Survey close failed", closeError);
       setError("The survey could not be closed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!surveyId || !activeOrgId) return;
+    if (!window.confirm("Delete this survey and ALL of its responses permanently? This cannot be undone.")) {
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await deleteSurvey({ orgId: activeOrgId, surveyId });
+      navigate("/admin", { replace: true });
+    } catch (deleteError) {
+      console.error("Survey delete failed", deleteError);
+      setError("The survey could not be deleted. Verify your role and try again.");
     } finally {
       setSaving(false);
     }
@@ -453,6 +469,16 @@ export function SurveyEditorPage() {
                 disabled={saving}
               >
                 Close survey
+              </button>
+            )}
+            {surveyId && (
+              <button
+                className="danger-button"
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={saving}
+              >
+                Delete survey
               </button>
             )}
           </div>

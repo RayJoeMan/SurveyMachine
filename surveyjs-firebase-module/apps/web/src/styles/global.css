@@ -386,6 +386,12 @@ textarea {
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
+.page-actions {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .page-heading h1 {
   margin: 0.25rem 0;
   font-size: clamp(2rem, 5vw, 3rem);

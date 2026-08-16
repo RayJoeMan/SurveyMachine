@@ -5,16 +5,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import {
-  doc,
-  getDoc,
-  getDocs,
-  collection,
-  collectionGroup,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
+import { deleteDoc, doc, getDoc, getDocs, collection, collectionGroup, query, setDoc, where } from "firebase/firestore";
 import { getBytes, ref, uploadBytes } from "firebase/storage";
 import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
 
@@ -138,6 +129,12 @@ describe("Firestore private boundary", () => {
     );
   });
 
+  it("denies direct client deletion of a survey (server-side delete only)", async () => {
+    await seed();
+    const firestore = testEnv.authenticatedContext("admin").firestore();
+    await assertFails(deleteDoc(doc(firestore, `organizations/${orgId}/surveys/${surveyId}`)));
+  });
+
   it("denies users without a permitted role", async () => {
     await seed();
     const firestore = testEnv.authenticatedContext("outsider").firestore();
@@ -148,7 +145,9 @@ describe("Firestore private boundary", () => {
     await seed();
     const adminFirestore = testEnv.authenticatedContext("admin").firestore();
     await assertSucceeds(
-      getDoc(doc(adminFirestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`)),
+      getDoc(
+        doc(adminFirestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`),
+      ),
     );
     const editorFirestore = testEnv.authenticatedContext("editor").firestore();
     await assertFails(
@@ -166,12 +165,22 @@ describe("Firestore private boundary", () => {
     });
     const firestore = testEnv.authenticatedContext("outsider").firestore();
     await assertSucceeds(
-      getDocs(query(collectionGroup(firestore, "members"), where("uid", "==", "outsider"))),
+      getDocs(
+        query(
+          collectionGroup(firestore, "members"),
+          where("uid", "==", "outsider"),
+        ),
+      ),
     );
     // A member document that does not carry the caller's uid must be filtered out.
     const reporterFirestore = testEnv.authenticatedContext("outsider").firestore();
     await assertFails(
-      getDocs(query(collectionGroup(reporterFirestore, "members"), where("uid", "==", "reporter"))),
+      getDocs(
+        query(
+          collectionGroup(reporterFirestore, "members"),
+          where("uid", "==", "reporter"),
+        ),
+      ),
     );
   });
 });

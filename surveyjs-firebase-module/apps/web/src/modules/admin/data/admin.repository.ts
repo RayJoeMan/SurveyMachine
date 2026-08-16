@@ -2,6 +2,7 @@ import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/fires
 import { httpsCallable } from "firebase/functions";
 import { FirebaseError } from "firebase/app";
 import type {
+  ExportOrganizationDataInput,
   ExportSurveyInput,
   SurveyActionInput,
   SurveyJsJson,
@@ -66,6 +67,17 @@ interface ExportSurveyResult extends CallableBaseResult {
   responseCount: number;
 }
 
+interface DeleteSurveyResult extends CallableBaseResult {
+  deleted: boolean;
+}
+
+interface OrgExportResult extends CallableBaseResult {
+  downloadUrl: string;
+  expiresAt: string;
+  surveyCount: number;
+  memberCount: number;
+}
+
 const upsertSurveyCallable = httpsCallable<UpsertSurveyInput, SaveSurveyResult>(
   functions,
   "upsertSurveyV1",
@@ -81,6 +93,14 @@ const closeSurveyCallable = httpsCallable<SurveyActionInput, CallableBaseResult>
 const exportSurveyCallable = httpsCallable<ExportSurveyInput, ExportSurveyResult>(
   functions,
   "createSurveyExportV1",
+);
+const deleteSurveyCallable = httpsCallable<SurveyActionInput, DeleteSurveyResult>(
+  functions,
+  "deleteSurveyV1",
+);
+const orgExportCallable = httpsCallable<ExportOrganizationDataInput, OrgExportResult>(
+  functions,
+  "exportOrganizationDataV1",
 );
 
 export async function listSurveys(orgId: string): Promise<PrivateSurvey[]> {
@@ -134,4 +154,14 @@ export async function closeSurvey(input: SurveyActionInput): Promise<CallableBas
 
 export async function createSurveyExport(input: ExportSurveyInput): Promise<ExportSurveyResult> {
   return (await exportSurveyCallable(input)).data;
+}
+
+export async function deleteSurvey(input: SurveyActionInput): Promise<DeleteSurveyResult> {
+  return (await deleteSurveyCallable(input)).data;
+}
+
+export async function exportOrganizationData(
+  input: ExportOrganizationDataInput,
+): Promise<OrgExportResult> {
+  return (await orgExportCallable(input)).data;
 }

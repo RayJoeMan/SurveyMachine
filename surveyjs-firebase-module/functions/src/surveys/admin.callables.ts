@@ -184,3 +184,64 @@ export const closeSurveyV1 = onCall({ enforceAppCheck, cors: true }, async (requ
   });
   return { ok: true as const, requestId };
 });
+
+const SURVEY_SUBCOLLECTIONS = [
+  "versions",
+  "responses",
+  "aggregates",
+  "counters",
+  "eventReceipts",
+  "exportJobs",
+  "outbox",
+] as const;
+
+/**
+ * Server-side, admin-only survey deletion. Deletes the private definition, every
+ * subcollection (including responses), and the public projection — in bounded
+ * batches — and records an audit entry. Client-initiated deletes remain denied
+ * by Firestore rules; this callable is the only deletion path.
+ */
+export const deleteSurveyV1 = onCall(
+  { enforceAppCheck, cors: true, timeoutSeconds: 120, memory: "512MiB" },
+  async (request) => {
+    const requestId = randomUUID();
+    const input = parseInput(SurveyActionInputSchema, request.data);
+    await assertRole(input.orgId, request.auth?.uid, ["org_admin", "survey_admin"]);
+
+    const surveyRef = db.doc(`organizations/${input.orgId}/surveys/${input.surveyId}`);
+    const survey = await surveyRef.get();
+    if (!survey.exists) {
+      return { ok: true as const, requestId, deleted: false };
+    }
+
+    for (const subcollection of SURVEY_SUBCOLLECTIONS) {
+      const collectionRef = surveyRef.collection(subcollection);
+      for (;;) {
+        const snapshot = await collectionRef.limit(500).get();
+        if (snapshot.empty) break;
+        const batch = db.batch();
+        snapshot.docs.forEach((document) => batch.delete(document.ref));
+        await batch.commit();
+      }
+    }
+
+    await surveyRef.delete();
+
+    // Remove the public projection only if it belongs to this organization.
+    const publicRef = db.doc(`publicSurveys/${input.surveyId}`);
+    const publicSurvey = await publicRef.get();
+    if (publicSurvey.exists && publicSurvey.get("orgId") === input.orgId) {
+      await publicRef.delete();
+    }
+
+    await safeAudit({
+      orgId: input.orgId,
+      actorUid: request.auth!.uid,
+      action: "survey.deleted",
+      resourceType: "survey",
+      resourceId: input.surveyId,
+      requestId,
+    });
+    return { ok: true as const, requestId, deleted: true };
+  },
+);
