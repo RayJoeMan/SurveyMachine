@@ -1,0 +1,60 @@
+{
+  "name": "surveyjs-firebase-module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A secure, independently deployable SurveyJS and Firebase survey module.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=10"
+  },
+  "workspaces": [
+    "apps/web",
+    "functions"
+  ],
+  "scripts": {
+    "build": "npm run contracts:check && npm run build --workspace @survey-module/web && npm run build --workspace @survey-module/functions",
+    "build:web": "npm run build --workspace @survey-module/web",
+    "build:functions": "npm run build --workspace @survey-module/functions",
+    "bootstrap": "tsx scripts/bootstrap-org.ts",
+    "check:env": "node scripts/check-env.mjs",
+    "contracts:check": "tsc --project packages/contracts/tsconfig.json --noEmit",
+    "dev": "concurrently --kill-others --names WEB,EMULATORS --prefix-colors cyan,magenta \"npm:dev:web\" \"npm:emulators\"",
+    "dev:web": "npm run dev --workspace @survey-module/web",
+    "emulators": "firebase emulators:start --project demo-survey-module",
+    "emulators:exec": "firebase emulators:exec --project demo-survey-module --only auth,firestore,functions,hosting,storage",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "seed": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 GCLOUD_PROJECT=demo-survey-module tsx scripts/seed-emulator.ts",
+    "test": "npm run test:unit && npm run test:functions",
+    "test:unit": "npm run test --workspace @survey-module/web",
+    "test:functions": "npm run test --workspace @survey-module/functions",
+    "test:rules": "firebase emulators:exec --project demo-survey-module --only firestore,storage \"vitest run --config tests/rules/vitest.config.ts\"",
+    "test:e2e": "playwright test",
+    "smoke:staging": "npm run check:env && npm run build && npm run test:e2e",
+    "typecheck": "npm run contracts:check && npm run typecheck --workspace @survey-module/web && npm run typecheck --workspace @survey-module/functions",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run test:rules && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@firebase/rules-unit-testing": "5.0.1",
+    "@playwright/test": "1.62.1",
+    "@types/node": "24.10.1",
+    "concurrently": "10.0.4",
+    "cross-env": "10.1.0",
+    "eslint": "10.8.1",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.4",
+    "firebase": "12.17.1",
+    "firebase-admin": "14.2.0",
+    "firebase-tools": "15.26.0",
+    "globals": "17.11.0",
+    "prettier": "3.9.6",
+    "tsx": "4.23.12",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.67.0",
+    "vitest": "4.1.10"
+  }
+}

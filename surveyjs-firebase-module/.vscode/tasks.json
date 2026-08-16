@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Survey Module: Install",
+      "type": "shell",
+      "command": "npm install",
+      "problemMatcher": []
+    },
+    {
+      "label": "Survey Module: Start Web + Emulators",
+      "type": "shell",
+      "command": "npm run dev",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Survey Module: Seed Emulator",
+      "type": "shell",
+      "command": "npm run seed",
+      "problemMatcher": []
+    },
+    {
+      "label": "Survey Module: Verify",
+      "type": "shell",
+      "command": "npm run verify",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": ["$tsc", "$eslint-stylish"]
+    }
+  ]
+}

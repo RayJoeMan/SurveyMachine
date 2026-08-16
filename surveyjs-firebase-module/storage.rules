@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasAnyRole(orgId, requiredRoles) {
+      let member = firestore.get(
+        /databases/(default)/documents/organizations/$(orgId)/members/$(request.auth.uid)
+      );
+      return signedIn() && member.data.roles.hasAny(requiredRoles);
+    }
+
+    match /survey-exports/{orgId}/{surveyId}/{fileName} {
+      allow read: if hasAnyRole(orgId, ['org_admin', 'survey_admin', 'report_viewer']);
+      allow write: if false;
+    }
+
+    match /public-assets/{orgId}/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // File-question uploads are intentionally denied until the signed upload,
+    // malware/content review, quota, retention, and anonymous-session design is implemented.
+    match /survey-uploads/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

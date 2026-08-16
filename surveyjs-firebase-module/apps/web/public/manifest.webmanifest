@@ -1,0 +1,9 @@
+{
+  "name": "Community Survey Module",
+  "short_name": "Surveys",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#123a63",
+  "icons": []
+}

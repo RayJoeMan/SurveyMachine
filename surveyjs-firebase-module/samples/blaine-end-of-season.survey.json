@@ -1,0 +1,129 @@
+{
+  "title": "Blaine Youth Lacrosse End-of-Season Survey",
+  "description": "Help us stabilize, grow, and improve the player, coach, parent, and volunteer experience.",
+  "showProgressBar": "top",
+  "progressBarType": "pages",
+  "showQuestionNumbers": "on",
+  "checkErrorsMode": "onValueChanged",
+  "completeText": "Submit feedback",
+  "pages": [
+    {
+      "name": "context",
+      "title": "About your experience",
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "respondent_role",
+          "title": "Which best describes you?",
+          "isRequired": true,
+          "choices": ["Player", "Parent or guardian", "Coach", "Board member", "Volunteer"]
+        },
+        {
+          "type": "radiogroup",
+          "name": "program",
+          "title": "Which program are you responding about?",
+          "isRequired": true,
+          "choices": ["Girls lacrosse", "Boys lacrosse", "Both programs"]
+        },
+        {
+          "type": "dropdown",
+          "name": "age_level",
+          "title": "Primary age level",
+          "isRequired": true,
+          "choices": ["6U/8U", "10U", "12U", "14U", "Multiple levels", "Not applicable"]
+        }
+      ]
+    },
+    {
+      "name": "experience",
+      "title": "Program experience",
+      "elements": [
+        {
+          "type": "matrix",
+          "name": "experience_ratings",
+          "title": "Rate each part of the experience.",
+          "isRequired": true,
+          "columns": [
+            { "value": 1, "text": "Needs work" },
+            { "value": 2, "text": "Fair" },
+            { "value": 3, "text": "Good" },
+            { "value": 4, "text": "Very good" },
+            { "value": 5, "text": "Excellent" }
+          ],
+          "rows": [
+            { "value": "communication", "text": "Communication" },
+            { "value": "coaching", "text": "Coaching" },
+            { "value": "player_development", "text": "Player development" },
+            { "value": "schedule", "text": "Schedule and organization" },
+            { "value": "value", "text": "Value for the cost" }
+          ]
+        },
+        {
+          "type": "comment",
+          "name": "girls_program_feedback",
+          "title": "What should we protect or improve in the girls program?",
+          "visibleIf": "{program} = 'Girls lacrosse' or {program} = 'Both programs'",
+          "maxLength": 1500
+        },
+        {
+          "type": "comment",
+          "name": "boys_program_feedback",
+          "title": "What should we protect or improve in the boys program?",
+          "visibleIf": "{program} = 'Boys lacrosse' or {program} = 'Both programs'",
+          "maxLength": 1500
+        },
+        {
+          "type": "radiogroup",
+          "name": "extended_spring_interest",
+          "title": "Would you support an extended spring season instead of separate full spring and summer seasons?",
+          "visibleIf": "({program} = 'Boys lacrosse' or {program} = 'Both programs') and ({respondent_role} = 'Player' or {respondent_role} = 'Parent or guardian')",
+          "choices": ["Yes", "No", "Unsure — I need more information"]
+        }
+      ]
+    },
+    {
+      "name": "priorities",
+      "title": "Priorities and next steps",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "top_priorities",
+          "title": "Choose up to three priorities for the coming year.",
+          "isRequired": true,
+          "maxSelectedChoices": 3,
+          "choices": [
+            "Player development pathway",
+            "Coach education and support",
+            "Parent rules and program education",
+            "Registration growth",
+            "Volunteer recruitment",
+            "Board project accountability",
+            "Affordability and equipment access",
+            "Fall and winter opportunities"
+          ]
+        },
+        {
+          "type": "boolean",
+          "name": "interested_in_helping",
+          "title": "Would you like information about helping with one of these priorities?",
+          "labelTrue": "Yes",
+          "labelFalse": "No"
+        },
+        {
+          "type": "email",
+          "name": "follow_up_email",
+          "title": "Email for volunteer follow-up",
+          "visibleIf": "{interested_in_helping} = true",
+          "isRequired": true,
+          "placeholder": "name@example.com"
+        },
+        {
+          "type": "comment",
+          "name": "additional_feedback",
+          "title": "What else should the board know?",
+          "maxLength": 2000
+        }
+      ]
+    }
+  ]
+}

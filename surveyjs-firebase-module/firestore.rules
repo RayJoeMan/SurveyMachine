@@ -1,0 +1,114 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberPath(orgId) {
+      return /databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid);
+    }
+
+    function isMember(orgId) {
+      return signedIn() && exists(memberPath(orgId));
+    }
+
+    function memberRoles(orgId) {
+      return get(memberPath(orgId)).data.roles;
+    }
+
+    function hasAnyRole(orgId, requiredRoles) {
+      return isMember(orgId) && memberRoles(orgId).hasAny(requiredRoles);
+    }
+
+    function surveyModuleEnabled(orgId) {
+      let entitlement = get(/databases/$(database)/documents/organizations/$(orgId)/moduleEntitlements/surveys);
+      return entitlement.data.enabled == true;
+    }
+
+    match /publicSurveys/{publicSurveyId} {
+      allow get: if (resource.data.status == 'published' || resource.data.status == 'closed')
+        && resource.data.publicSurveyId == publicSurveyId
+        && surveyModuleEnabled(resource.data.orgId);
+      allow list, create, update, delete: if false;
+    }
+
+    match /organizations/{orgId} {
+      allow get: if isMember(orgId);
+      allow list, create, update, delete: if false;
+
+      match /members/{uid} {
+        allow get: if signedIn() && (request.auth.uid == uid || hasAnyRole(orgId, ['org_admin']));
+        allow list: if hasAnyRole(orgId, ['org_admin']);
+        allow create, update, delete: if false;
+      }
+
+      match /moduleEntitlements/{moduleId} {
+        allow read: if isMember(orgId);
+        allow create, update, delete: if false;
+      }
+
+      match /surveys/{surveyId} {
+        allow read: if hasAnyRole(orgId, [
+          'org_admin',
+          'survey_admin',
+          'survey_editor',
+          'report_viewer'
+        ]);
+        allow create, update, delete: if false;
+
+        match /versions/{versionId} {
+          allow read: if hasAnyRole(orgId, [
+            'org_admin',
+            'survey_admin',
+            'survey_editor',
+            'report_viewer'
+          ]);
+          allow create, update, delete: if false;
+        }
+
+        match /responses/{responseId} {
+          allow read: if hasAnyRole(orgId, ['org_admin', 'survey_admin', 'report_viewer']);
+          allow create, update, delete: if false;
+        }
+
+        match /aggregates/{aggregateId} {
+          allow read: if hasAnyRole(orgId, [
+            'org_admin',
+            'survey_admin',
+            'survey_editor',
+            'report_viewer'
+          ]);
+          allow create, update, delete: if false;
+        }
+
+        match /counters/{counterId} {
+          allow read, create, update, delete: if false;
+        }
+
+        match /eventReceipts/{receiptId} {
+          allow read, create, update, delete: if false;
+        }
+
+        match /exportJobs/{jobId} {
+          allow get: if signedIn() && (
+            resource.data.requestedBy == request.auth.uid
+            || hasAnyRole(orgId, ['org_admin', 'survey_admin'])
+          );
+          allow list: if hasAnyRole(orgId, ['org_admin', 'survey_admin']);
+          allow create, update, delete: if false;
+        }
+      }
+
+      match /auditLogs/{auditId} {
+        allow read: if hasAnyRole(orgId, ['org_admin']);
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
