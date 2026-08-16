@@ -6,6 +6,25 @@ import { AdminShell } from "@/modules/admin/components/AdminShell";
 import { listSurveys, type PrivateSurvey } from "@/modules/admin/data/admin.repository";
 import { LoadingState } from "@/shared/AsyncState";
 
+function CopyPublicLink({ surveyId }: { surveyId: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/s/${surveyId}`;
+  return (
+    <button
+      type="button"
+      className="link-button"
+      onClick={() => {
+        void navigator.clipboard.writeText(url).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1_600);
+        });
+      }}
+    >
+      {copied ? "Copied" : "Copy link"}
+    </button>
+  );
+}
+
 export function AdminHomePage() {
   const { user, loading: authLoading } = useAuth();
   const [surveys, setSurveys] = useState<PrivateSurvey[]>([]);
@@ -87,9 +106,12 @@ export function AdminHomePage() {
                     <Link to={`/admin/surveys/${survey.surveyId}/edit`}>Edit</Link>
                     <Link to={`/admin/surveys/${survey.surveyId}/report`}>Report</Link>
                     {survey.status === "published" && (
-                      <a href={`/s/${survey.surveyId}`} target="_blank" rel="noreferrer">
-                        Open
-                      </a>
+                      <>
+                        <a href={`/s/${survey.surveyId}`} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
+                        <CopyPublicLink surveyId={survey.surveyId} />
+                      </>
                     )}
                   </td>
                 </tr>

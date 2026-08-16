@@ -383,6 +383,18 @@ tbody tr:last-child td {
   gap: 0.9rem;
   white-space: nowrap;
 }
+.link-button {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--navy);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
 .status-badge {
   display: inline-flex;
   border-radius: 999px;
@@ -521,6 +533,118 @@ tbody tr:last-child td {
 .preview-heading strong {
   color: var(--muted);
   font-size: 0.78rem;
+}
+.preview-toolbar {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: #fafbfc;
+}
+.preview-mode {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+.preview-mode.is-active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: white;
+}
+.preview-frame {
+  margin: 1rem auto;
+  transition: width 160ms ease;
+}
+.preview-frame--desktop {
+  width: 100%;
+}
+.preview-frame--tablet {
+  width: 640px;
+  max-width: 100%;
+}
+.preview-frame--phone {
+  width: 360px;
+  max-width: 100%;
+}
+.diagnostics-panel {
+  border-top: 1px solid var(--line);
+  padding: 1rem;
+  background: #fafbfc;
+}
+.diagnostics-panel h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+.diagnostics-panel ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+.diagnostic--error {
+  color: #852929;
+  font-weight: 600;
+}
+.diagnostic--warning {
+  color: #7a5b12;
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 20, 30, 0.5);
+  padding: 1rem;
+}
+.modal {
+  width: min(560px, 100%);
+  border-radius: 14px;
+  background: white;
+  padding: 1.5rem;
+  box-shadow: 0 24px 64px rgba(10, 20, 30, 0.35);
+}
+.modal h2 {
+  margin: 0 0 1rem;
+}
+.review-list {
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+.review-list > div {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0.75rem;
+}
+.review-list dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+.review-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.review-warning {
+  border: 1px solid #e4c98a;
+  background: #fbf3dd;
+  color: #6b5212;
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  margin-top: 1.25rem;
 }
 
 .metric-grid {

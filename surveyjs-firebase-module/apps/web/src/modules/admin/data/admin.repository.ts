@@ -1,5 +1,6 @@
 import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
+import { FirebaseError } from "firebase/app";
 import type {
   ExportSurveyInput,
   SurveyActionInput,
@@ -20,7 +21,13 @@ export interface PrivateSurvey {
   settings: SurveySettings;
   branding: SurveyBranding;
   publishedVersion: number;
+  draftRevision: number;
   updatedAt?: unknown;
+}
+
+/** True when the callable rejected a save because the draft changed underneath us. */
+export function isDraftConflictError(error: unknown): boolean {
+  return error instanceof FirebaseError && error.code === "functions/aborted";
 }
 
 export interface SurveySummary {

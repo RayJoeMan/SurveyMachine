@@ -35,7 +35,18 @@ export const upsertSurveyV1 = onCall({ enforceAppCheck, cors: true }, async (req
   const surveyRef = db.doc(`organizations/${input.orgId}/surveys/${surveyId}`);
   await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(surveyRef);
-    const draftRevision = Number(existing.get("draftRevision") || 0) + 1;
+    const currentRevision = Number(existing.exists ? existing.get("draftRevision") || 0 : 0);
+    if (
+      input.expectedDraftRevision !== undefined &&
+      input.expectedDraftRevision !== currentRevision
+    ) {
+      throw new HttpsError(
+        "aborted",
+        "This draft was changed by someone else. Reload the survey before saving again.",
+        { currentDraftRevision: currentRevision },
+      );
+    }
+    const draftRevision = currentRevision + 1;
     transaction.set(
       surveyRef,
       {

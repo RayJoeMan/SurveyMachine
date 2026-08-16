@@ -12,6 +12,9 @@ import { assertJsonSize } from "../core/errors";
 import { db } from "../core/firebase";
 import { assertModuleEnabled } from "../core/permissions";
 
+const MAX_PAGES = 50;
+const MAX_QUESTIONS = 500;
+
 export function validateSurveyDefinition(schema: SurveyJsJson): void {
   assertJsonSize(schema, MAX_SURVEY_SCHEMA_BYTES, "Survey schema");
   let model: Model;
@@ -30,6 +33,20 @@ export function validateSurveyDefinition(schema: SurveyJsJson): void {
   }
   if (new Set(names).size !== names.length) {
     throw new HttpsError("invalid-argument", "Question names must be unique.");
+  }
+  if (model.getAllQuestions().length > MAX_QUESTIONS) {
+    throw new HttpsError("invalid-argument", `Surveys are limited to ${MAX_QUESTIONS} questions.`);
+  }
+  if (model.pages.length > MAX_PAGES) {
+    throw new HttpsError("invalid-argument", `Surveys are limited to ${MAX_PAGES} pages.`);
+  }
+  const fileQuestions = model.getAllQuestions().filter((question) => question.getType() === "file");
+  if (fileQuestions.length > 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "File questions cannot be used while file uploads are disabled.",
+      { questionNames: fileQuestions.map((question) => question.name) },
+    );
   }
 }
 

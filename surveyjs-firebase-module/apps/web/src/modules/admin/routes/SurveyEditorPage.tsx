@@ -9,11 +9,70 @@ import { AdminShell } from "@/modules/admin/components/AdminShell";
 import {
   closeSurvey,
   getSurvey,
+  isDraftConflictError,
   publishSurvey,
   upsertSurvey,
 } from "@/modules/admin/data/admin.repository";
 import { defaultSurveySchema } from "@/modules/admin/defaultSurvey";
 import { LoadingState } from "@/shared/AsyncState";
+
+interface SchemaDiagnostic {
+  level: "error" | "warning";
+  message: string;
+}
+
+function analyzeSurveySchema(schema: unknown): SchemaDiagnostic[] {
+  const diagnostics: SchemaDiagnostic[] = [];
+  if (!schema || typeof schema !== "object") {
+    return [{ level: "error", message: "Schema must be a JSON object." }];
+  }
+  const record = schema as Record<string, unknown>;
+  const pages = Array.isArray(record.pages)
+    ? record.pages
+    : Array.isArray(record.elements)
+      ? record.elements
+      : [];
+
+  const questions: Array<{ name?: unknown; type?: unknown }> = [];
+  const walk = (nodes: unknown[]): void => {
+    for (const node of nodes) {
+      if (!node || typeof node !== "object") continue;
+      const item = node as Record<string, unknown>;
+      if (typeof item.type === "string" && item.type !== "page" && item.type !== "panel") {
+        questions.push({ name: item.name, type: item.type });
+      }
+      if (Array.isArray(item.elements)) walk(item.elements);
+    }
+  };
+  walk(pages);
+
+  const names = questions.map((question) => String(question.name ?? ""));
+  const duplicates = names.filter((name, index) => name && names.indexOf(name) !== index);
+  if (duplicates.length > 0) {
+    diagnostics.push({
+      level: "error",
+      message: `Duplicate question names: ${[...new Set(duplicates)].join(", ")}.`,
+    });
+  }
+  if (questions.some((question) => !question.name)) {
+    diagnostics.push({ level: "error", message: "Every question requires a stable name." });
+  }
+  for (const question of questions) {
+    if (question.type === "file") {
+      diagnostics.push({
+        level: "error",
+        message: `File question "${String(question.name)}" cannot be used while uploads are disabled.`,
+      });
+    }
+  }
+  if (questions.length > 500) {
+    diagnostics.push({ level: "warning", message: "Surveys are limited to 500 questions." });
+  }
+  if (pages.length > 50) {
+    diagnostics.push({ level: "warning", message: "Surveys are limited to 50 pages." });
+  }
+  return diagnostics;
+}
 
 const defaultSettings: SurveySettings = {
   allowAnonymous: true,
@@ -43,6 +102,8 @@ export function SurveyEditorPage() {
   const navigate = useNavigate();
   const [surveyId, setSurveyId] = useState(routeSurveyId || "");
   const [status, setStatus] = useState<"draft" | "published" | "closed" | "archived">("draft");
+  const [draftRevision, setDraftRevision] = useState(0);
+  const [publishedVersion, setPublishedVersion] = useState(0);
   const [title, setTitle] = useState("New community survey");
   const [description, setDescription] = useState("Tell us about your experience.");
   const [schemaText, setSchemaText] = useState(JSON.stringify(defaultSurveySchema, null, 2));
@@ -50,6 +111,8 @@ export function SurveyEditorPage() {
   const [branding, setBranding] = useState<SurveyBranding>(defaultBranding);
   const [closesAtInput, setClosesAtInput] = useState("");
   const [responseLimitInput, setResponseLimitInput] = useState("");
+  const [previewMode, setPreviewMode] = useState<"desktop" | "tablet" | "phone">("desktop");
+  const [showPublishReview, setShowPublishReview] = useState(false);
   const [loading, setLoading] = useState(Boolean(routeSurveyId));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -65,6 +128,8 @@ export function SurveyEditorPage() {
         }
         setSurveyId(survey.surveyId);
         setStatus(survey.status);
+        setDraftRevision(Number(survey.draftRevision || 0));
+        setPublishedVersion(Number(survey.publishedVersion || 0));
         setTitle(survey.title);
         setDescription(survey.description);
         setSchemaText(JSON.stringify(survey.schema, null, 2));
@@ -83,14 +148,21 @@ export function SurveyEditorPage() {
   const preview = useMemo(() => {
     try {
       const parsed: unknown = JSON.parse(schemaText);
-      return { model: new Model(parsed), error: "" };
+      const model = new Model(parsed);
+      model.setDevice(previewMode);
+      return { model, error: "", diagnostics: analyzeSurveySchema(parsed) };
     } catch (previewError) {
       return {
         model: null,
         error: previewError instanceof Error ? previewError.message : "Invalid SurveyJS JSON.",
+        diagnostics: [],
       };
     }
-  }, [schemaText]);
+  }, [previewMode, schemaText]);
+
+  const hasBlockingDiagnostics = preview.diagnostics.some(
+    (diagnostic) => diagnostic.level === "error",
+  );
 
   function buildInput() {
     const parsedSchema: unknown = JSON.parse(schemaText);
@@ -104,6 +176,7 @@ export function SurveyEditorPage() {
       schema: parsedSchema,
       settings: { ...settings, responseLimit, closesAt },
       branding,
+      expectedDraftRevision: surveyId ? draftRevision : undefined,
     });
   }
 
@@ -121,11 +194,17 @@ export function SurveyEditorPage() {
       return result.surveyId;
     } catch (saveError) {
       console.error("Survey save failed", saveError);
-      setError(
-        saveError instanceof Error
-          ? `Draft was not saved: ${saveError.message}`
-          : "Draft was not saved.",
-      );
+      if (isDraftConflictError(saveError)) {
+        setError(
+          "This draft was changed by someone else. Reload the survey to see the latest version before saving again.",
+        );
+      } else {
+        setError(
+          saveError instanceof Error
+            ? `Draft was not saved: ${saveError.message}`
+            : "Draft was not saved.",
+        );
+      }
       return null;
     } finally {
       setSaving(false);
@@ -141,6 +220,8 @@ export function SurveyEditorPage() {
       if (!savedId) return;
       const result = await publishSurvey({ orgId: env.defaultOrgId, surveyId: savedId });
       setStatus("published");
+      setPublishedVersion(result.version);
+      setShowPublishReview(false);
       setMessage(`Published version ${result.version}. Public ID: ${result.publicSurveyId}`);
     } catch (publishError) {
       console.error("Survey publish failed", publishError);
@@ -340,8 +421,8 @@ export function SurveyEditorPage() {
             <button
               className="button"
               type="button"
-              onClick={() => void handlePublish()}
-              disabled={saving || Boolean(preview.error)}
+              onClick={() => setShowPublishReview(true)}
+              disabled={saving || Boolean(preview.error) || hasBlockingDiagnostics}
             >
               Publish
             </button>
@@ -363,13 +444,87 @@ export function SurveyEditorPage() {
             <span className="eyebrow">Live preview</span>
             <strong>Not connected to response storage</strong>
           </div>
-          {preview.model ? (
-            <Survey model={preview.model} />
-          ) : (
-            <p>Fix the JSON to restore the preview.</p>
+          <div className="preview-toolbar" role="group" aria-label="Preview device">
+            {(["desktop", "tablet", "phone"] as const).map((device) => (
+              <button
+                key={device}
+                type="button"
+                className={previewMode === device ? "preview-mode is-active" : "preview-mode"}
+                aria-pressed={previewMode === device}
+                onClick={() => setPreviewMode(device)}
+              >
+                {device}
+              </button>
+            ))}
+          </div>
+          <div className={`preview-frame preview-frame--${previewMode}`}>
+            {preview.model ? (
+              <Survey model={preview.model} />
+            ) : (
+              <p>Fix the JSON to restore the preview.</p>
+            )}
+          </div>
+          {preview.diagnostics.length > 0 && (
+            <div className="diagnostics-panel">
+              <h3>Schema checks</h3>
+              <ul>
+                {preview.diagnostics.map((diagnostic, index) => (
+                  <li
+                    key={`${diagnostic.level}-${index}`}
+                    className={`diagnostic diagnostic--${diagnostic.level}`}
+                    role={diagnostic.level === "error" ? "alert" : undefined}
+                  >
+                    {diagnostic.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </aside>
       </div>
+
+      {showPublishReview && (
+        <div className="modal-backdrop">
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="publish-review-title"
+          >
+            <h2 id="publish-review-title">Review before publishing</h2>
+            <dl className="review-list">
+              <div>
+                <dt>Public URL</dt>
+                <dd>/s/{surveyId || "(assigned after first save)"}</dd>
+              </div>
+              <div>
+                <dt>Version created</dt>
+                <dd>{publishedVersion + 1}</dd>
+              </div>
+              <div>
+                <dt>Respondents see</dt>
+                <dd>This draft becomes the live public projection.</dd>
+              </div>
+            </dl>
+            <p className="review-warning" role="alert">
+              Changing question names changes reporting keys. Existing responses keep the version
+              they were submitted under.
+            </p>
+            <div className="modal-actions">
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={() => setShowPublishReview(false)}
+              >
+                Cancel
+              </button>
+              <button className="button" type="button" onClick={() => void handlePublish()}>
+                Confirm publish
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </AdminShell>
   );
 }

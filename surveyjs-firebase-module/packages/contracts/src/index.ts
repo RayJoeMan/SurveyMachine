@@ -107,6 +107,13 @@ export const UpsertSurveyInputSchema = z.object({
   schema: SurveyJsSchema,
   settings: SurveySettingsSchema,
   branding: BrandingSchema,
+  /**
+   * Optimistic-concurrency precondition. When provided, the draft is only saved
+   * if the stored draftRevision still matches. Conflicts surface as an
+   * `aborted` HttpsError with the current revision, so two editors can never
+   * silently overwrite each other.
+   */
+  expectedDraftRevision: z.number().int().nonnegative().optional(),
 });
 export type UpsertSurveyInput = z.input<typeof UpsertSurveyInputSchema>;
 
