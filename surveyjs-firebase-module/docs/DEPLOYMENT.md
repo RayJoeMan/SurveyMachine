@@ -2,20 +2,32 @@
 
 ## Environment strategy
 
-Use separate Firebase projects for `dev`, `stage`, and `prod`. Do not point a local build at production. Do not reuse the production Storage bucket or response database for testing.
+The module is deployed to the `survey-machine-766b8` Firebase project with two
+Firebase Hosting sites:
+
+| Environment | Hosting site          | URL                                                                    | Build env                  |
+| ----------- | --------------------- | ---------------------------------------------------------------------- | -------------------------- |
+| Dev/Stage   | `dev-survey-machine`  | https://dev-survey-machine--survey-machine-766b8.us-east4.hosted.app/  | `apps/web/.env.stage`      |
+| Production  | `prod-survey-machine` | https://prod-survey-machine--survey-machine-766b8.us-east4.hosted.app/ | `apps/web/.env.production` |
+
+Both sites are separate surfaces of the same Firebase project (same Firestore,
+Storage, Functions). Do not point a local build at production, and do not reuse
+the production Storage bucket or response database for testing.
 
 ## Initial environment setup
 
-1. Create the Firebase project and web app.
+1. Confirm the Firebase project and web app (`survey-machine-766b8`) and that both
+   hosting sites exist (`dev-survey-machine`, `prod-survey-machine`).
 2. Enable Firestore in the chosen production region.
 3. Enable Storage, Hosting, Cloud Functions, and required Google Cloud APIs.
 4. Enable Email/Password for emulator parity and the intended production provider (commonly Google); restrict authorized domains.
-5. Copy `.firebaserc.example` to `.firebaserc` and set real aliases.
-6. Provide the public Firebase web values at build time from `apps/web/.env.example`.
+5. `.firebaserc` already points `default`/`dev`/`prod` at `survey-machine-766b8`.
+6. Provide the public Firebase web values at build time from `apps/web/.env.example`
+   (`.env.production` and `.env.stage` are populated and gitignored).
 7. Configure Functions parameters:
    - `ENFORCE_APP_CHECK=false` for first staging deploy
    - `EXPORT_URL_TTL_MINUTES=15` or approved value
-8. Deploy rules and indexes first to staging.
+8. Deploy rules and indexes first to dev, then to prod after staging sign-off.
 9. Bootstrap the organization, entitlement, and first admin membership from a trusted environment using Application Default Credentials. Do not use `scripts/seed-emulator.ts` against production.
 10. Deploy Functions and Hosting, then run the full staging acceptance suite.
 
@@ -24,10 +36,17 @@ Use separate Firebase projects for `dev`, `stage`, and `prod`. Do not point a lo
 ```bash
 npm ci
 npm run verify
-firebase use stage
+
+# Dev/stage hosting site (builds with apps/web/.env.stage)
+npm run deploy:dev
+
+# Production hosting site (builds with apps/web/.env.production)
+npm run deploy:prod
+
+# Shared backend (rules, indexes, storage, functions) — deploy to both after
+# staging sign-off, never the reverse order
 firebase deploy --only firestore:rules,firestore:indexes,storage
 firebase deploy --only functions:survey-module
-firebase deploy --only hosting
 ```
 
 Deploy to production only from a known commit after staging sign-off. Consider separate deployment jobs and manual approval for rules/functions versus Hosting.

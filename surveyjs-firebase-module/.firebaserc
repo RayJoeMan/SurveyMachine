@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "survey-machine-766b8",
+    "dev": "survey-machine-766b8",
+    "prod": "survey-machine-766b8"
+  }
+}

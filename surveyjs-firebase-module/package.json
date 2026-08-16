@@ -16,9 +16,13 @@
   "scripts": {
     "build": "npm run contracts:check && npm run build --workspace @survey-module/web && npm run build --workspace @survey-module/functions",
     "build:web": "npm run build --workspace @survey-module/web",
+    "build:web:stage": "npm run build:stage --workspace @survey-module/web",
     "build:functions": "npm run build --workspace @survey-module/functions",
     "bootstrap": "tsx scripts/bootstrap-org.ts",
     "check:env": "node scripts/check-env.mjs",
+    "check:env:stage": "node scripts/check-env.mjs stage",
+    "deploy:dev": "npm run build:web:stage && firebase deploy --only hosting:dev-survey-machine",
+    "deploy:prod": "npm run build:web && firebase deploy --only hosting:prod-survey-machine",
     "contracts:check": "tsc --project packages/contracts/tsconfig.json --noEmit",
     "dev": "concurrently --kill-others --names WEB,EMULATORS --prefix-colors cyan,magenta \"npm:dev:web\" \"npm:emulators\"",
     "dev:web": "npm run dev --workspace @survey-module/web",
@@ -33,7 +37,7 @@
     "test:functions": "npm run test --workspace @survey-module/functions",
     "test:rules": "firebase emulators:exec --project demo-survey-module --only firestore,storage \"vitest run --config tests/rules/vitest.config.ts\"",
     "test:e2e": "playwright test",
-    "smoke:staging": "npm run check:env && npm run build && npm run test:e2e",
+    "smoke:staging": "npm run check:env:stage && npm run build:web:stage && npm run test:e2e",
     "typecheck": "npm run contracts:check && npm run typecheck --workspace @survey-module/web && npm run typecheck --workspace @survey-module/functions",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run test:rules && npm run build"
   },
