@@ -4,9 +4,9 @@
 
 Deploy this survey module as an independently deployable React application with its own Firebase project by default. Integrate it into a broader PWA through a narrow route/navigation contract, shared branding inputs, and exports/webhooks—not through direct imports into private internals.
 
-This is appropriate when the survey system may be reused across Blaine Youth Lacrosse, Guardian Elite, or separate customer sites; has its own public traffic, quotas, response data, lifecycle, and deployment cadence; or must be switched off without redeploying a host site.
+This is appropriate when the survey system may be reused across multiple customer sites or organizations; has its own public traffic, quotas, response data, lifecycle, and deployment cadence; or must be switched off without redeploying a host site.
 
-If it becomes exclusively part of one BYL PWA with shared identity, operations, and reporting, the same feature folders can move into that monorepo and share its Firebase project. Do not maintain two databases for the same live response set.
+If it becomes exclusively part of one customer PWA with shared identity, operations, and reporting, the same feature folders can move into that monorepo and share its Firebase project. Do not maintain two databases for the same live response set.
 
 ## System shape
 

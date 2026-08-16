@@ -11,7 +11,8 @@ const environmentSchema = z.object({
   VITE_FIREBASE_MEASUREMENT_ID: z.string().optional(),
   VITE_FIREBASE_FUNCTIONS_REGION: z.string().min(1).default("us-central1"),
   VITE_USE_EMULATORS: z.enum(["true", "false"]).default("false"),
-  VITE_DEFAULT_ORG_ID: z.string().min(1),
+  /** Optional in a multi-tenant deployment; leave empty to require an organization picker. */
+  VITE_DEFAULT_ORG_ID: z.string().optional().default(""),
   VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: z.string().optional(),
 });
 

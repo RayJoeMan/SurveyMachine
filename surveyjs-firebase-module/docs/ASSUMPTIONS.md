@@ -2,8 +2,8 @@
 
 ## Assumptions used in this scaffold
 
-- The module may serve more than one website/program, so independent deployment and data isolation are valuable.
-- Initial volume is community/youth-sports scale, not millions of responses per hour.
+- The module is a commercialization-ready, multi-tenant product: no organization is pre-seeded, and every tenant organization is created from a trusted shell (`npm run bootstrap`), never from the browser or the emulator seed.
+- Initial volume is community/small-business scale per tenant, not millions of responses per hour.
 - Most surveys can be anonymous; staff administration requires Firebase Authentication.
 - Survey definitions can initially be maintained through reviewed SurveyJS JSON plus live preview.
 - Raw answers should be less accessible than aggregate reports.
@@ -22,4 +22,5 @@
 7. Which reporting metrics need precomputed question-level aggregates?
 8. Are email/SMS invitations needed, and which provider/consent model applies?
 9. Are file questions needed enough to justify the upload safety workflow?
-10. Should this remain standalone or move into the BYL PWA once the broader reporting platform exists?
+10. Should this remain standalone or move into a specific customer PWA once the broader reporting platform exists?
+11. Who can create organizations, and what is the commercial onboarding/entitlement process for a new tenant?

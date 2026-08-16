@@ -34,6 +34,13 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
+    // Collection-group read of the caller's own memberships across organizations,
+    // used by the admin organization picker. Only rows whose uid matches the
+    // caller are returned.
+    match /{path=**}/members/{uid} {
+      allow list: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
     match /organizations/{orgId} {
       allow get: if isMember(orgId);
       allow list, create, update, delete: if false;

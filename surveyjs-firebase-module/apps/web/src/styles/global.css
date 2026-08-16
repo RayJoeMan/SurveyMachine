@@ -316,6 +316,16 @@ textarea {
   color: #c9d8e4;
   font-size: 0.86rem;
 }
+.org-switcher select {
+  max-width: 220px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--navy-dark);
+  color: white;
+  font: inherit;
+  font-size: 0.86rem;
+  padding: 0.35rem 0.6rem;
+}
 .admin-main {
   width: min(1240px, calc(100% - 2rem));
   margin: 0 auto;

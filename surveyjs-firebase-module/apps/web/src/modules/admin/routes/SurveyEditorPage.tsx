@@ -4,7 +4,7 @@ import { Model } from "survey-core";
 import { Survey } from "survey-react-ui";
 import { UpsertSurveyInputSchema, type SurveyBranding, type SurveySettings } from "@/contracts";
 import { useAuth } from "@/auth/AuthProvider";
-import { env } from "@/config/env";
+import { useActiveOrg } from "@/auth/OrgProvider";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import {
   closeSurvey,
@@ -84,7 +84,7 @@ const defaultSettings: SurveySettings = {
 };
 
 const defaultBranding: SurveyBranding = {
-  organizationName: "Blaine Youth Lacrosse",
+  organizationName: "Your Organization",
   primaryColor: "#123a63",
   accentColor: "#f4b942",
 };
@@ -99,6 +99,7 @@ function toLocalDateTime(iso: string | null): string {
 export function SurveyEditorPage() {
   const { surveyId: routeSurveyId } = useParams();
   const { user, loading: authLoading } = useAuth();
+  const { activeOrgId } = useActiveOrg();
   const navigate = useNavigate();
   const [surveyId, setSurveyId] = useState(routeSurveyId || "");
   const [status, setStatus] = useState<"draft" | "published" | "closed" | "archived">("draft");
@@ -119,8 +120,8 @@ export function SurveyEditorPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!routeSurveyId || !user) return;
-    void getSurvey(env.defaultOrgId, routeSurveyId)
+    if (!routeSurveyId || !user || !activeOrgId) return;
+    void getSurvey(activeOrgId, routeSurveyId)
       .then((survey) => {
         if (!survey) {
           setError("Survey not found.");
@@ -143,7 +144,7 @@ export function SurveyEditorPage() {
         setError("Survey could not be loaded or you do not have access.");
       })
       .finally(() => setLoading(false));
-  }, [routeSurveyId, user]);
+  }, [activeOrgId, routeSurveyId, user]);
 
   const preview = useMemo(() => {
     try {
@@ -165,11 +166,12 @@ export function SurveyEditorPage() {
   );
 
   function buildInput() {
+    if (!activeOrgId) throw new Error("No organization selected.");
     const parsedSchema: unknown = JSON.parse(schemaText);
     const responseLimit = responseLimitInput ? Number(responseLimitInput) : null;
     const closesAt = closesAtInput ? new Date(closesAtInput).toISOString() : null;
     return UpsertSurveyInputSchema.parse({
-      orgId: env.defaultOrgId,
+      orgId: activeOrgId,
       surveyId: surveyId || undefined,
       title,
       description,
@@ -212,13 +214,14 @@ export function SurveyEditorPage() {
   }
 
   async function handlePublish() {
+    if (!activeOrgId) return;
     setSaving(true);
     setError("");
     setMessage("");
     try {
       const savedId = await handleSave();
       if (!savedId) return;
-      const result = await publishSurvey({ orgId: env.defaultOrgId, surveyId: savedId });
+      const result = await publishSurvey({ orgId: activeOrgId, surveyId: savedId });
       setStatus("published");
       setPublishedVersion(result.version);
       setShowPublishReview(false);
@@ -232,11 +235,17 @@ export function SurveyEditorPage() {
   }
 
   async function handleClose() {
-    if (!surveyId || !window.confirm("Close this survey and stop accepting new responses?")) return;
+    if (
+      !surveyId ||
+      !activeOrgId ||
+      !window.confirm("Close this survey and stop accepting new responses?")
+    ) {
+      return;
+    }
     setSaving(true);
     setError("");
     try {
-      await closeSurvey({ orgId: env.defaultOrgId, surveyId });
+      await closeSurvey({ orgId: activeOrgId, surveyId });
       setStatus("closed");
       setMessage("Survey closed.");
     } catch (closeError) {
@@ -249,6 +258,16 @@ export function SurveyEditorPage() {
 
   if (authLoading || loading) return <LoadingState label="Loading survey editor…" />;
   if (!user) return <Navigate to="/login" replace />;
+  if (!activeOrgId) {
+    return (
+      <AdminShell>
+        <div className="empty-panel">
+          <h1>No organization selected</h1>
+          <p>Select or create an organization before editing surveys.</p>
+        </div>
+      </AdminShell>
+    );
+  }
 
   return (
     <AdminShell>

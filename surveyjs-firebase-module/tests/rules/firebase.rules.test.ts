@@ -5,7 +5,16 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, getDocs, collection, setDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  getDocs,
+  collection,
+  collectionGroup,
+  query,
+  setDoc,
+  where,
+} from "firebase/firestore";
 import { getBytes, ref, uploadBytes } from "firebase/storage";
 import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
 
@@ -144,6 +153,25 @@ describe("Firestore private boundary", () => {
     const editorFirestore = testEnv.authenticatedContext("editor").firestore();
     await assertFails(
       getDoc(doc(editorFirestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`)),
+    );
+  });
+
+  it("lets users list only their own memberships across organizations", async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `organizations/other-org/members/outsider`), {
+        uid: "outsider",
+        roles: ["survey_editor"],
+      });
+    });
+    const firestore = testEnv.authenticatedContext("outsider").firestore();
+    await assertSucceeds(
+      getDocs(query(collectionGroup(firestore, "members"), where("uid", "==", "outsider"))),
+    );
+    // A member document that does not carry the caller's uid must be filtered out.
+    const reporterFirestore = testEnv.authenticatedContext("outsider").firestore();
+    await assertFails(
+      getDocs(query(collectionGroup(reporterFirestore, "members"), where("uid", "==", "reporter"))),
     );
   });
 });

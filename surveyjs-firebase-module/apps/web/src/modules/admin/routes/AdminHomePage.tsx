@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
-import { env } from "@/config/env";
+import { useActiveOrg } from "@/auth/OrgProvider";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import { listSurveys, type PrivateSurvey } from "@/modules/admin/data/admin.repository";
 import { LoadingState } from "@/shared/AsyncState";
@@ -27,29 +27,56 @@ function CopyPublicLink({ surveyId }: { surveyId: string }) {
 
 export function AdminHomePage() {
   const { user, loading: authLoading } = useAuth();
+  const { activeOrgId, activeOrg, loading: orgLoading } = useActiveOrg();
   const [surveys, setSurveys] = useState<PrivateSurvey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user) return;
-    void listSurveys(env.defaultOrgId)
-      .then(setSurveys)
-      .catch((loadError: unknown) => {
+    if (!user || !activeOrgId) return;
+    let active = true;
+    void (async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setLoading(true);
+      try {
+        const items = await listSurveys(activeOrgId);
+        if (!active) return;
+        setSurveys(items);
+      } catch (loadError: unknown) {
+        if (!active) return;
         console.error("Survey list failed", loadError);
         setError("You do not have access, or the survey list could not be loaded.");
-      })
-      .finally(() => setLoading(false));
-  }, [user]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [activeOrgId, user]);
 
-  if (authLoading) return <LoadingState label="Checking access…" />;
+  if (authLoading || orgLoading) return <LoadingState label="Checking access…" />;
   if (!user) return <Navigate to="/login" replace />;
+  if (!activeOrgId) {
+    return (
+      <AdminShell>
+        <div className="empty-panel">
+          <h1>No organization selected</h1>
+          <p>
+            Your account is not a member of any organization yet. An administrator must create your
+            organization with the bootstrap tool and grant your membership.
+          </p>
+        </div>
+      </AdminShell>
+    );
+  }
 
   return (
     <AdminShell>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">{env.defaultOrgId}</span>
+          <span className="eyebrow">{activeOrg?.name || activeOrgId}</span>
           <h1>Surveys</h1>
           <p>
             Create a draft, test its branching, publish a public projection, and review results.

@@ -60,7 +60,17 @@ Then open:
 - Firebase Emulator UI: `http://127.0.0.1:4000`
 - Admin: `admin@example.test` / `LocalOnly123!`
 
-The sample password is emulator-only and must never be used in a deployed environment.
+The emulator seed creates a generic `Demo Organization` — no real tenant is
+hardcoded. Override it with environment variables, e.g.:
+
+```bash
+SEED_ORG_ID=acme SEED_ORG_NAME="Acme Corp" SEED_ADMIN_EMAIL=admin@acme.test npm run seed
+```
+
+Production organizations are created from a trusted shell with `npm run bootstrap`
+(ADC, dry-run, refuses demo/placeholder projects) — never from the browser or
+the emulator seed. The sample password is emulator-only and must never be used
+in a deployed environment.
 
 ## Verification
 

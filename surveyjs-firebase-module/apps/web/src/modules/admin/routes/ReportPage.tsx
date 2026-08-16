@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
-import { env } from "@/config/env";
+import { useActiveOrg } from "@/auth/OrgProvider";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import {
   createSurveyExport,
@@ -17,6 +17,7 @@ import { LoadingState } from "@/shared/AsyncState";
 export function ReportPage() {
   const { surveyId = "" } = useParams();
   const { user, loading: authLoading } = useAuth();
+  const { activeOrgId } = useActiveOrg();
   const [survey, setSurvey] = useState<PrivateSurvey | null>(null);
   const [summary, setSummary] = useState<SurveySummary | null>(null);
   const [questionAggregates, setQuestionAggregates] = useState<QuestionAggregates>({});
@@ -25,11 +26,11 @@ export function ReportPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !activeOrgId) return;
     void Promise.all([
-      getSurvey(env.defaultOrgId, surveyId),
-      getSurveySummary(env.defaultOrgId, surveyId),
-      getSurveyQuestionAggregates(env.defaultOrgId, surveyId),
+      getSurvey(activeOrgId, surveyId),
+      getSurveySummary(activeOrgId, surveyId),
+      getSurveyQuestionAggregates(activeOrgId, surveyId),
     ])
       .then(([loadedSurvey, loadedSummary, loadedAggregates]) => {
         setSurvey(loadedSurvey);
@@ -41,13 +42,21 @@ export function ReportPage() {
         setError("The report could not be loaded or you do not have reporting access.");
       })
       .finally(() => setLoading(false));
-  }, [surveyId, user]);
+  }, [activeOrgId, surveyId, user]);
 
   async function handleExport() {
+    if (!activeOrgId) {
+      setError("No organization selected.");
+      return;
+    }
     setExporting(true);
     setError("");
     try {
-      const result = await createSurveyExport({ orgId: env.defaultOrgId, surveyId, format: "csv" });
+      const result = await createSurveyExport({
+        orgId: activeOrgId,
+        surveyId,
+        format: "csv",
+      });
       window.location.assign(result.downloadUrl);
     } catch (exportError) {
       console.error("Export failed", exportError);
@@ -59,6 +68,16 @@ export function ReportPage() {
 
   if (authLoading || loading) return <LoadingState label="Loading report…" />;
   if (!user) return <Navigate to="/login" replace />;
+  if (!activeOrgId) {
+    return (
+      <AdminShell>
+        <div className="empty-panel">
+          <h1>No organization selected</h1>
+          <p>Select an organization before viewing reports.</p>
+        </div>
+      </AdminShell>
+    );
+  }
 
   const averageSeconds = summary?.completed
     ? Math.round(summary.totalDurationMs / summary.completed / 1000)
@@ -115,9 +134,7 @@ export function ReportPage() {
           here; raw responses remain available only through controlled export.
         </p>
         {Object.keys(questionAggregates).length === 0 ? (
-          <p className="empty-panel">
-            No aggregate data yet — publish a survey and collect responses.
-          </p>
+          <p className="empty-panel">No aggregate data yet — publish a survey and collect responses.</p>
         ) : (
           <div className="distribution-list">
             {Object.entries(questionAggregates).map(([name, aggregate]) => {
@@ -129,8 +146,7 @@ export function ReportPage() {
                   <header>
                     <strong>{name}</strong>
                     <span>
-                      {aggregate.questionType || "question"} · {total} response
-                      {total === 1 ? "" : "s"}
+                      {aggregate.questionType || "question"} · {total} response{total === 1 ? "" : "s"}
                     </span>
                   </header>
                   <ul>
