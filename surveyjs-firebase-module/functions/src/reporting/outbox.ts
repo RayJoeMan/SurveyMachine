@@ -13,9 +13,9 @@ const outboxBatchSize = defineInt("OUTBOX_BATCH_SIZE", { default: 20 });
  * Exponential backoff for outbox retries: 1m, 2m, 4m … capped at 1h, plus a
  * small jitter so a burst of failures does not re-synchronize.
  */
-export function computeNextAttemptAt(attempt: number, nowMs = Date.now(), jitterMs = 0): Date {
+export function computeNextAttemptAt(attempt: number, nowMs = Date.now(), jitterMs?: number): Date {
   const baseDelay = Math.min(2 ** Math.max(attempt - 1, 0) * 60_000, 60 * 60_000);
-  const jitter = jitterMs > 0 ? jitterMs : Math.floor(Math.random() * 5_000);
+  const jitter = jitterMs === undefined ? Math.floor(Math.random() * 5_000) : jitterMs;
   return new Date(nowMs + baseDelay + jitter);
 }
 
@@ -49,11 +49,11 @@ export async function enqueueOutboxEvent(input: {
   payload: Record<string, unknown>;
 }): Promise<string> {
   const eventId = randomUUID();
-  const event: OutboxEvent = {
+  const event = {
     eventId,
     eventType: input.eventType,
     orgId: input.orgId,
-    surveyId: input.surveyId,
+    surveyId: input.surveyId ?? null,
     idempotencyKey: input.idempotencyKey,
     status: "pending",
     attempts: 0,
