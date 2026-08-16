@@ -1,12 +1,7 @@
 import { FirebaseError } from "firebase/app";
 
 export type SubmissionErrorKind =
-  | "offline"
-  | "capacity"
-  | "closed"
-  | "denied"
-  | "validation"
-  | "retryable";
+  "offline" | "capacity" | "closed" | "denied" | "validation" | "retryable";
 
 export interface SubmissionFailure {
   kind: SubmissionErrorKind;
