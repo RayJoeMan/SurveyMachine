@@ -134,7 +134,9 @@ export function ReportPage() {
           here; raw responses remain available only through controlled export.
         </p>
         {Object.keys(questionAggregates).length === 0 ? (
-          <p className="empty-panel">No aggregate data yet — publish a survey and collect responses.</p>
+          <p className="empty-panel">
+            No aggregate data yet — publish a survey and collect responses.
+          </p>
         ) : (
           <div className="distribution-list">
             {Object.entries(questionAggregates).map(([name, aggregate]) => {
@@ -146,7 +148,8 @@ export function ReportPage() {
                   <header>
                     <strong>{name}</strong>
                     <span>
-                      {aggregate.questionType || "question"} · {total} response{total === 1 ? "" : "s"}
+                      {aggregate.questionType || "question"} · {total} response
+                      {total === 1 ? "" : "s"}
                     </span>
                   </header>
                   <ul>

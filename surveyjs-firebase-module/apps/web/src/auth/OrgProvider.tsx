@@ -1,12 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import {
-  collectionGroup,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-} from "firebase/firestore";
+import { collectionGroup, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import {
   createContext,
   useCallback,
