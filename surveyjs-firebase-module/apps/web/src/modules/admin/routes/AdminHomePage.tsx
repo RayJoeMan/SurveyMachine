@@ -64,8 +64,8 @@ export function AdminHomePage() {
         <div className="empty-panel">
           <h1>No organization selected</h1>
           <p>
-            Your account is not a member of any organization yet. An administrator must create your
-            organization with the bootstrap tool and grant your membership.
+            Your account is not a member of any organization yet. An administrator must create
+            your organization with the bootstrap tool and grant your membership.
           </p>
         </div>
       </AdminShell>
