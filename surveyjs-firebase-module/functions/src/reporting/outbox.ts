@@ -1,12 +1,11 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { defineInt, defineSecret } from "firebase-functions/params";
+import { defineInt } from "firebase-functions/params";
 import { logger } from "firebase-functions";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { OUTBOX_MAX_ATTEMPTS, type OutboxEvent } from "../contracts";
 import { db } from "../core/firebase";
 
-const webhookSigningSecret = defineSecret("WEBHOOK_SIGNING_SECRET");
 const outboxBatchSize = defineInt("OUTBOX_BATCH_SIZE", { default: 20 });
 
 /**
@@ -117,7 +116,7 @@ async function deliverWebhook(event: OutboxEvent, secret: string): Promise<Deliv
  * provider secrets and are documented in docs/BUILD-PLAN.md.
  */
 export const processOutboxV1 = onSchedule(
-  { schedule: "every 5 minutes", secrets: [webhookSigningSecret], timeoutSeconds: 120 },
+  { schedule: "every 5 minutes", timeoutSeconds: 120 },
   async () => {
     const snapshot = await db
       .collectionGroup("outbox")
@@ -131,7 +130,8 @@ export const processOutboxV1 = onSchedule(
     await Promise.all(
       snapshot.docs.map(async (document) => {
         const event = document.data() as OutboxEvent;
-        const secret = webhookSigningSecret.value();
+        // Optional runtime secret: when unset, delivery is cleanly disabled.
+        const secret = process.env.WEBHOOK_SIGNING_SECRET ?? "";
         const result = secret
           ? await deliverWebhook(event, secret)
           : {
