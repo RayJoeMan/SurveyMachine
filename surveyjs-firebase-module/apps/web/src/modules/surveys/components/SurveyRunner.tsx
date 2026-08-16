@@ -12,6 +12,10 @@ import {
   loadLocalAnswers,
   saveLocalAnswers,
 } from "@/modules/surveys/domain/session";
+import {
+  submissionFailure,
+  type SubmissionFailure,
+} from "@/modules/surveys/domain/submissionErrors";
 
 type SubmissionState = "answering" | "submitting" | "failed";
 
@@ -24,7 +28,7 @@ export function SurveyRunner({ publicSurvey }: { publicSurvey: PublicSurvey }) {
   );
   const metadata = useMemo(() => collectResponseMetadata(), []);
   const [submissionState, setSubmissionState] = useState<SubmissionState>("answering");
-  const [submissionError, setSubmissionError] = useState("");
+  const [submissionError, setSubmissionError] = useState<SubmissionFailure | null>(null);
   const lastAnswers = useRef<Record<string, unknown>>({});
 
   const model = useMemo(() => {
@@ -41,14 +45,15 @@ export function SurveyRunner({ publicSurvey }: { publicSurvey: PublicSurvey }) {
       if (!navigator.onLine) {
         saveLocalAnswers(publicSurvey.publicSurveyId, answers);
         setSubmissionState("failed");
-        setSubmissionError(
-          "You are offline. Your answers are saved on this device; reconnect and retry.",
-        );
+        setSubmissionError({
+          kind: "offline",
+          message: "You are offline. Your answers are saved on this device; reconnect and retry.",
+        });
         return;
       }
 
       setSubmissionState("submitting");
-      setSubmissionError("");
+      setSubmissionError(null);
       try {
         await submitSurveyResponse({
           publicSurveyId: publicSurvey.publicSurveyId,
@@ -62,11 +67,11 @@ export function SurveyRunner({ publicSurvey }: { publicSurvey: PublicSurvey }) {
         navigate(`/thanks/${publicSurvey.publicSurveyId}`, { replace: true });
       } catch (error) {
         console.error("Survey submission failed", error);
+        // Permanent failures (capacity/closed/denied) must not keep a retry loop
+        // alive; the draft is still preserved locally either way.
         saveLocalAnswers(publicSurvey.publicSurveyId, answers);
         setSubmissionState("failed");
-        setSubmissionError(
-          "We could not submit your response. Your answers remain saved on this device. Please retry.",
-        );
+        setSubmissionError(submissionFailure(error));
       }
     },
     [metadata, navigate, publicSurvey.publicSurveyId, session],
@@ -142,19 +147,23 @@ export function SurveyRunner({ publicSurvey }: { publicSurvey: PublicSurvey }) {
               <h2>Submitting your response…</h2>
               <p>Please keep this page open.</p>
             </>
-          ) : (
+          ) : submissionError ? (
             <>
               <h2>Response not submitted</h2>
-              <p role="alert">{submissionError}</p>
-              <button
-                className="button"
-                type="button"
-                onClick={() => void submit(lastAnswers.current)}
-              >
-                Retry submission
-              </button>
+              <p role="alert">{submissionError.message}</p>
+              {(submissionError.kind === "retryable" ||
+                submissionError.kind === "validation" ||
+                submissionError.kind === "offline") && (
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() => void submit(lastAnswers.current)}
+                >
+                  Retry submission
+                </button>
+              )}
             </>
-          )}
+          ) : null}
         </div>
       )}
     </section>
