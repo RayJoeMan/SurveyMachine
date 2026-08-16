@@ -128,6 +128,42 @@ export const ExportOrganizationDataInputSchema = z.object({
 });
 export type ExportOrganizationDataInput = z.input<typeof ExportOrganizationDataInputSchema>;
 
+export const CreateOrganizationInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  orgId: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9_-]*$/, "Use lowercase letters, numbers, hyphens, or underscores.")
+    .min(2)
+    .max(80)
+    .optional(),
+});
+export type CreateOrganizationInput = z.input<typeof CreateOrganizationInputSchema>;
+
+const RESERVED_ORG_IDS = new Set([
+  "admin",
+  "demo",
+  "demo-org",
+  "organization",
+  "survey",
+  "surveys",
+  "test",
+]);
+
+export function isReservedOrgId(orgId: string): boolean {
+  return RESERVED_ORG_IDS.has(orgId);
+}
+
+/** Deterministic slug used to derive a default organization ID from its name. */
+export function slugifyOrganizationName(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40);
+  return slug || "organization";
+}
+
 export const ExportSurveyInputSchema = SurveyActionInputSchema.extend({
   format: z.literal("csv").default("csv"),
 });

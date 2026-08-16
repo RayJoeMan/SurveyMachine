@@ -2,6 +2,7 @@ import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/fires
 import { httpsCallable } from "firebase/functions";
 import { FirebaseError } from "firebase/app";
 import type {
+  CreateOrganizationInput,
   ExportOrganizationDataInput,
   ExportSurveyInput,
   SurveyActionInput,
@@ -78,6 +79,11 @@ interface OrgExportResult extends CallableBaseResult {
   memberCount: number;
 }
 
+interface CreateOrganizationResult extends CallableBaseResult {
+  orgId: string;
+  created: boolean;
+}
+
 const upsertSurveyCallable = httpsCallable<UpsertSurveyInput, SaveSurveyResult>(
   functions,
   "upsertSurveyV1",
@@ -101,6 +107,10 @@ const deleteSurveyCallable = httpsCallable<SurveyActionInput, DeleteSurveyResult
 const orgExportCallable = httpsCallable<ExportOrganizationDataInput, OrgExportResult>(
   functions,
   "exportOrganizationDataV1",
+);
+const createOrganizationCallable = httpsCallable<CreateOrganizationInput, CreateOrganizationResult>(
+  functions,
+  "createOrganizationV1",
 );
 
 export async function listSurveys(orgId: string): Promise<PrivateSurvey[]> {
@@ -164,4 +174,10 @@ export async function exportOrganizationData(
   input: ExportOrganizationDataInput,
 ): Promise<OrgExportResult> {
   return (await orgExportCallable(input)).data;
+}
+
+export async function createOrganization(
+  input: CreateOrganizationInput,
+): Promise<CreateOrganizationResult> {
+  return (await createOrganizationCallable(input)).data;
 }

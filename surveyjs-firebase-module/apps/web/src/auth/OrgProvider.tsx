@@ -26,6 +26,8 @@ interface OrgContextValue {
   activeOrgId: string | null;
   activeOrg: OrgMembership | null;
   setActiveOrgId: (orgId: string) => void;
+  /** Re-fetch memberships (e.g. after creating an organization). */
+  reload: () => void;
   loading: boolean;
 }
 
@@ -38,6 +40,9 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   const [memberships, setMemberships] = useState<OrgMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeOrgId, setActiveOrgIdState] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const reload = useCallback(() => setRefreshKey((key) => key + 1), []);
 
   useEffect(() => {
     let active = true;
@@ -105,7 +110,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [refreshKey, user]);
 
   const setActiveOrgId = useCallback((orgId: string) => {
     window.localStorage.setItem(STORAGE_KEY, orgId);
@@ -118,9 +123,10 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       activeOrgId,
       activeOrg: memberships.find((membership) => membership.orgId === activeOrgId) ?? null,
       setActiveOrgId,
+      reload,
       loading: loading || authLoading,
     }),
-    [activeOrgId, authLoading, loading, memberships, setActiveOrgId],
+    [activeOrgId, authLoading, loading, memberships, reload, setActiveOrgId],
   );
 
   return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>;

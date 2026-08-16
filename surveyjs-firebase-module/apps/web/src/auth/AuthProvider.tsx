@@ -2,6 +2,8 @@
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -16,6 +18,8 @@ interface AuthContextValue {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  sendEmailVerification: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -45,6 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signOutUser() {
         await signOut(auth);
+      },
+      async sendPasswordReset(email) {
+        await sendPasswordResetEmail(auth, email);
+      },
+      async sendEmailVerification() {
+        if (auth.currentUser) await sendEmailVerification(auth.currentUser);
       },
     }),
     [loading, user],

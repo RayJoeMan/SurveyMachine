@@ -11,8 +11,8 @@ export function LandingPage() {
         <span className="eyebrow">Survey Machine</span>
         <h1>Feedback that builds better programs.</h1>
         <p>
-          Create anonymous or signed-in surveys with branching, safe progress saving, live reports,
-          and controlled exports — all under your organization&apos;s control.
+          Create anonymous or signed-in surveys with branching, safe progress saving, live
+          reports, and controlled exports — all under your organization&apos;s control.
         </p>
         <div className="button-row">
           <Link className="button" to="/admin">

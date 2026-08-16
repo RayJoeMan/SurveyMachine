@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { slugifyOrganizationName } from "@/contracts";
 import { useAuth } from "@/auth/AuthProvider";
 import { useActiveOrg } from "@/auth/OrgProvider";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import {
+  createOrganization,
   exportOrganizationData,
   listSurveys,
   type PrivateSurvey,
@@ -31,11 +33,16 @@ function CopyPublicLink({ surveyId }: { surveyId: string }) {
 
 export function AdminHomePage() {
   const { user, loading: authLoading } = useAuth();
-  const { activeOrgId, activeOrg, loading: orgLoading } = useActiveOrg();
+  const { activeOrgId, activeOrg, reload, loading: orgLoading } = useActiveOrg();
   const [surveys, setSurveys] = useState<PrivateSurvey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgIdInput, setOrgIdInput] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const previewOrgId = orgIdInput.trim() || slugifyOrganizationName(orgName);
 
   useEffect(() => {
     if (!user || !activeOrgId) return;
@@ -78,17 +85,70 @@ export function AdminHomePage() {
     }
   }
 
+  async function handleCreateOrg(event: FormEvent) {
+    event.preventDefault();
+    setCreating(true);
+    setError("");
+    try {
+      await createOrganization({
+        name: orgName.trim(),
+        orgId: previewOrgId || undefined,
+      });
+      setOrgName("");
+      setOrgIdInput("");
+      reload();
+    } catch (createError) {
+      console.error("Organization creation failed", createError);
+      setError(
+        createError instanceof Error
+          ? `Your organization could not be created: ${createError.message}`
+          : "Your organization could not be created. Check the name and try again.",
+      );
+    } finally {
+      setCreating(false);
+    }
+  }
+
   if (authLoading || orgLoading) return <LoadingState label="Checking access…" />;
   if (!user) return <Navigate to="/login" replace />;
   if (!activeOrgId) {
     return (
       <AdminShell>
         <div className="empty-panel">
-          <h1>No organization selected</h1>
+          <h1>Create your organization</h1>
           <p>
-            Your account is not a member of any organization yet. An administrator must create your
-            organization with the bootstrap tool and grant your membership.
+            You are not a member of an organization yet. Create one to start collecting feedback,
+            or ask an existing administrator to add your account as a member.
           </p>
+          <form className="onboarding-form" onSubmit={(event) => void handleCreateOrg(event)}>
+            <label>
+              Organization name
+              <input
+                value={orgName}
+                onChange={(event) => setOrgName(event.target.value)}
+                required
+                maxLength={120}
+                placeholder="e.g. Northside Youth Sports"
+              />
+            </label>
+            <label>
+              Identifier (optional)
+              <input
+                value={orgIdInput}
+                onChange={(event) => setOrgIdInput(event.target.value)}
+                placeholder={previewOrgId || "auto-generated"}
+                maxLength={80}
+              />
+            </label>
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+            <button className="button" type="submit" disabled={creating}>
+              {creating ? "Creating…" : "Create organization"}
+            </button>
+          </form>
         </div>
       </AdminShell>
     );

@@ -12,6 +12,11 @@ const AdminHomePage = lazy(() =>
 const LoginPage = lazy(() =>
   import("@/modules/admin/routes/LoginPage").then((module) => ({ default: module.LoginPage })),
 );
+const ForgotPasswordPage = lazy(() =>
+  import("@/modules/admin/routes/ForgotPasswordPage").then((module) => ({
+    default: module.ForgotPasswordPage,
+  })),
+);
 const ReportPage = lazy(() =>
   import("@/modules/admin/routes/ReportPage").then((module) => ({ default: module.ReportPage })),
 );
@@ -50,6 +55,7 @@ export function App() {
         <Route path="/s/:publicSurveyId" element={<TakeSurveyPage />} />
         <Route path="/thanks/:publicSurveyId" element={<SurveyCompletePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/legal/terms" element={<TermsOfService />} />
         <Route path="/legal/privacy" element={<PrivacyPolicy />} />
         <Route path="/legal/refunds" element={<RefundsAndCancellations />} />

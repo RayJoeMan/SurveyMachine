@@ -16,6 +16,6 @@ export {
 } from "./surveys/admin.callables";
 export { saveSurveyProgressV1, submitSurveyResponseV1 } from "./surveys/respondent.callables";
 export { createSurveyExportV1 } from "./reporting/export.callable";
-export { exportOrganizationDataV1 } from "./organization";
+export { createOrganizationV1, exportOrganizationDataV1 } from "./organization";
 export { updateSurveySummaryV1 } from "./reporting/response.trigger";
 export { processOutboxV1 } from "./reporting/outbox";

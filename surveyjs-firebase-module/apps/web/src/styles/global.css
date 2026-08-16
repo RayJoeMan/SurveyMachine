@@ -392,6 +392,14 @@ textarea {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.onboarding-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+.onboarding-form .button {
+  justify-self: start;
+}
 .page-heading h1 {
   margin: 0.25rem 0;
   font-size: clamp(2rem, 5vw, 3rem);

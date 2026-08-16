@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
+import { FieldValue } from "firebase-admin/firestore";
 import { defineBoolean, defineInt } from "firebase-functions/params";
-import { onCall } from "firebase-functions/v2/https";
-import { ExportOrganizationDataInputSchema } from "./contracts";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
+import {
+  CreateOrganizationInputSchema,
+  ExportOrganizationDataInputSchema,
+  isReservedOrgId,
+  slugifyOrganizationName,
+} from "./contracts";
 import { safeAudit } from "./core/audit";
 import { parseInput } from "./core/errors";
 import { db, getDefaultBucket } from "./core/firebase";
@@ -9,6 +15,66 @@ import { assertRole } from "./core/permissions";
 
 const enforceAppCheck = defineBoolean("ENFORCE_APP_CHECK", { default: false });
 const exportUrlTtlMinutes = defineInt("EXPORT_URL_TTL_MINUTES", { default: 15 });
+
+const CREATOR_ROLES = ["org_admin", "survey_admin", "survey_editor", "report_viewer"] as const;
+
+/**
+ * Self-service organization creation for an authenticated user. Creates the
+ * organization document, its survey-module entitlement, and the creator's
+ * membership (org_admin and all survey roles). Identity fields are read from
+ * the verified ID token, never from client input. Membership/roles remain
+ * non-client-writable; this trusted callable is the only creation path.
+ */
+export const createOrganizationV1 = onCall({ enforceAppCheck, cors: true }, async (request) => {
+  const requestId = randomUUID();
+  const identity = request.auth;
+  const uid = identity?.uid;
+  if (!identity || !uid) throw new HttpsError("unauthenticated", "Sign-in is required.");
+  const input = parseInput(CreateOrganizationInputSchema, request.data);
+  const orgId = input.orgId || slugifyOrganizationName(input.name);
+  if (isReservedOrgId(orgId)) {
+    throw new HttpsError("invalid-argument", "That organization identifier is reserved.");
+  }
+
+  const orgRef = db.doc(`organizations/${orgId}`);
+  const created = await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(orgRef);
+    if (existing.exists) {
+      const member = await transaction.get(orgRef.collection("members").doc(uid));
+      if (member.exists) return false;
+      throw new HttpsError("already-exists", "That organization identifier is already taken.");
+    }
+    const now = FieldValue.serverTimestamp();
+    transaction.set(orgRef, { orgId, name: input.name, createdAt: now, updatedAt: now });
+    transaction.set(orgRef.collection("moduleEntitlements").doc("surveys"), {
+      moduleId: "surveys",
+      enabled: true,
+      scope: "organization",
+      updatedBy: uid,
+      updatedAt: now,
+    });
+    transaction.set(orgRef.collection("members").doc(uid), {
+      uid,
+      email: identity.token?.email ?? null,
+      displayName: identity.token?.name ?? null,
+      roles: CREATOR_ROLES,
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return true;
+  });
+
+  await safeAudit({
+    orgId,
+    actorUid: uid,
+    action: created ? "organization.created" : "organization.membership_acknowledged",
+    resourceType: "organization",
+    resourceId: orgId,
+    requestId,
+  });
+  return { ok: true as const, requestId, orgId, created };
+});
 
 /** Deterministic storage path prefix for organization data exports. */
 export function orgExportStoragePath(orgId: string, fileName: string): string {
