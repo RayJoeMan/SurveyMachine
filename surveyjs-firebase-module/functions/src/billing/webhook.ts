@@ -249,9 +249,13 @@ export async function handleStripeEvent(stripe: Stripe, event: Stripe.Event): Pr
 export const stripeWebhookV1 = onRequest(
   { timeoutSeconds: 60, memory: "256MiB" },
   async (request, response) => {
-    const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+    // Comma-separated so live-mode and test-mode endpoint secrets can coexist.
+    const secrets = (process.env.STRIPE_WEBHOOK_SECRET ?? "")
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
     const stripe = getStripe();
-    if (!secret || !stripe) {
+    if (secrets.length === 0 || !stripe) {
       response.status(503).json({ error: "Stripe webhook is not configured." });
       return;
     }
@@ -265,11 +269,18 @@ export const stripeWebhookV1 = onRequest(
       return;
     }
 
-    let event: Stripe.Event;
-    try {
-      event = stripe.webhooks.constructEvent(request.rawBody, signature, secret);
-    } catch (error) {
-      logger.warn("Stripe webhook signature verification failed", { error });
+    let event: Stripe.Event | undefined;
+    let lastError: unknown;
+    for (const secret of secrets) {
+      try {
+        event = stripe.webhooks.constructEvent(request.rawBody, signature, secret);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!event) {
+      logger.warn("Stripe webhook signature verification failed", { error: lastError });
       response.status(400).json({ error: "Invalid Stripe signature." });
       return;
     }
