@@ -11,6 +11,7 @@ import { safeAudit } from "../core/audit";
 import { parseInput } from "../core/errors";
 import { db } from "../core/firebase";
 import { assertModuleEnabled, assertRole } from "../core/permissions";
+import { loadPlanMonthlyUsd } from "./config.callable";
 import { assertStripeConfigured, getOrCreatePlanPrice } from "./stripe";
 
 const enforceAppCheck = defineBoolean("ENFORCE_APP_CHECK", { default: false });
@@ -70,7 +71,11 @@ export const createCheckoutSessionV1 = onCall(
           ).id;
     }
 
-    const priceId = await getOrCreatePlanPrice(stripe, input.plan);
+    const monthlyUsd = await loadPlanMonthlyUsd(input.plan);
+    if (monthlyUsd == null) {
+      throw new HttpsError("invalid-argument", `${input.plan} has no paid price.`);
+    }
+    const priceId = await getOrCreatePlanPrice(stripe, input.plan, monthlyUsd);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,

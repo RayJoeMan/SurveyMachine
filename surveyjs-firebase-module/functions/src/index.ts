@@ -19,8 +19,22 @@ export {
 } from "./surveys/admin.callables";
 export { saveSurveyProgressV1, submitSurveyResponseV1 } from "./surveys/respondent.callables";
 export { createSurveyExportV1 } from "./reporting/export.callable";
-export { createOrganizationV1, exportOrganizationDataV1 } from "./organization";
+export {
+  createOrganizationV1,
+  exportOrganizationDataV1,
+  updateOrganizationV1,
+} from "./organization";
 export { createCheckoutSessionV1, createBillingPortalSessionV1 } from "./billing/checkout.callable";
 export { stripeWebhookV1 } from "./billing/webhook";
+export { updatePlanPricingV1 } from "./billing/config.callable";
+export { askSurveyDataV1 } from "./analytics/ask.callable";
+export { recomputeSurveyAggregatesV1 } from "./reporting/recompute.callable";
+export {
+  claimInvitationV1,
+  inviteMemberV1,
+  listMembersV1,
+  removeMemberV1,
+  updateMemberRolesV1,
+} from "./members.callable";
 export { updateSurveySummaryV1 } from "./reporting/response.trigger";
 export { processOutboxV1 } from "./reporting/outbox";

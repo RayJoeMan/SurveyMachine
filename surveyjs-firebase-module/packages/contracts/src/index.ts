@@ -230,6 +230,19 @@ export function jsonByteLength(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
 
+/**
+ * The callable protocol serializes absent optional fields as null; normalize
+ * null/undefined entries away before validation so optional keys pass.
+ */
+function stripNullEntries(value: unknown): unknown {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return Object.fromEntries(
+      Object.entries(value).filter(([, entry]) => entry !== null && entry !== undefined),
+    );
+  }
+  return value;
+}
+
 // ---------------------------------------------------------------------------
 // Billing (Stripe) contracts
 // ---------------------------------------------------------------------------
@@ -296,3 +309,139 @@ export const BILLING_PLAN_DETAILS: Record<
     blurb: "Everything in Pro plus priority onboarding and support.",
   },
 };
+
+/** Default monthly USD amounts used until the platform overrides them. */
+export const DEFAULT_PLAN_MONTHLY_USD: Record<BillingPlan, number | null> = {
+  free: null,
+  pro: 49,
+  enterprise: 199,
+};
+
+/** Monthly USD pricing for the paid plans, as configured by a super-admin. */
+export const PlatformBillingConfigSchema = z.object({
+  pro: z.number().int().positive().max(100_000),
+  enterprise: z.number().int().positive().max(100_000),
+  updatedBy: z.string().min(1).optional(),
+  updatedAt: z.unknown().optional(),
+});
+export type PlatformBillingConfig = z.infer<typeof PlatformBillingConfigSchema>;
+
+export const UpdatePlanPricingInputSchema = z.object({
+  pro: z.number().int().positive().max(100_000),
+  enterprise: z.number().int().positive().max(100_000),
+});
+export type UpdatePlanPricingInput = z.input<typeof UpdatePlanPricingInputSchema>;
+
+export const UpdatePlanPricingResultSchema = CallableResultSchema.extend({
+  pro: z.number().int().positive(),
+  enterprise: z.number().int().positive(),
+});
+export type UpdatePlanPricingResult = z.infer<typeof UpdatePlanPricingResultSchema>;
+
+// ---------------------------------------------------------------------------
+// AI analytics (natural-language survey questions)
+// ---------------------------------------------------------------------------
+
+export const AskSurveyDataInputSchema = z.object({
+  orgId: OrganizationIdSchema,
+  surveyId: SurveyIdSchema,
+  question: z.string().trim().min(3).max(1_000),
+});
+export type AskSurveyDataInput = z.input<typeof AskSurveyDataInputSchema>;
+
+export const AskSurveyDataResultSchema = CallableResultSchema.extend({
+  answer: z.string().min(1),
+  provider: z.string(),
+  model: z.string(),
+});
+export type AskSurveyDataResult = z.infer<typeof AskSurveyDataResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Organization settings, branding, and member management
+// ---------------------------------------------------------------------------
+
+export const OrgBrandingSchema = z.preprocess(
+  (value) => stripNullEntries(value),
+  z.object({
+    organizationName: z.string().trim().min(1).max(120),
+    logoUrl: z.url().max(2_048).optional(),
+    primaryColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .default("#123a63"),
+    accentColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .default("#f4b942"),
+  }),
+);
+export type OrgBranding = z.infer<typeof OrgBrandingSchema>;
+
+export const UpdateOrganizationInputSchema = z.preprocess(
+  (value) => stripNullEntries(value),
+  z.object({
+    orgId: OrganizationIdSchema,
+    name: z.string().trim().min(1).max(120).optional(),
+    branding: OrgBrandingSchema.optional(),
+  }),
+);
+export type UpdateOrganizationInput = z.input<typeof UpdateOrganizationInputSchema>;
+
+export const UpdateOrganizationResultSchema = CallableResultSchema.extend({
+  name: z.string().min(1),
+});
+export type UpdateOrganizationResult = z.infer<typeof UpdateOrganizationResultSchema>;
+
+export const MemberSummarySchema = z.object({
+  uid: z.string().min(1),
+  email: z.string().email().optional(),
+  displayName: z.string().max(200).optional(),
+  roles: z.array(SurveyModuleRoleSchema).min(1),
+  active: z.boolean(),
+  createdAt: z.unknown().optional(),
+});
+export type MemberSummary = z.infer<typeof MemberSummarySchema>;
+
+export const InviteMemberInputSchema = z.object({
+  orgId: OrganizationIdSchema,
+  email: z.string().email().max(254),
+  roles: z.array(SurveyModuleRoleSchema).min(1).max(4),
+});
+export type InviteMemberInput = z.input<typeof InviteMemberInputSchema>;
+
+export const UpdateMemberRolesInputSchema = z.object({
+  orgId: OrganizationIdSchema,
+  uid: z.string().min(1).max(128),
+  roles: z.array(SurveyModuleRoleSchema).min(1).max(4),
+});
+export type UpdateMemberRolesInput = z.input<typeof UpdateMemberRolesInputSchema>;
+
+export const RemoveMemberInputSchema = z.object({
+  orgId: OrganizationIdSchema,
+  uid: z.string().min(1).max(128),
+});
+export type RemoveMemberInput = z.input<typeof RemoveMemberInputSchema>;
+
+export const ClaimInvitationInputSchema = z.object({
+  orgId: OrganizationIdSchema,
+  invitationId: z.string().min(1).max(254),
+});
+export type ClaimInvitationInput = z.input<typeof ClaimInvitationInputSchema>;
+
+export const ListMembersResultSchema = CallableResultSchema.extend({
+  members: z.array(MemberSummarySchema),
+});
+export type ListMembersResult = z.infer<typeof ListMembersResultSchema>;
+
+export const InviteMemberResultSchema = CallableResultSchema.extend({
+  invitationId: z.string().min(1),
+});
+export type InviteMemberResult = z.infer<typeof InviteMemberResultSchema>;
+
+export const RecomputeAggregatesResultSchema = CallableResultSchema.extend({
+  scanned: z.number().int().nonnegative(),
+  completed: z.number().int().nonnegative(),
+  inProgress: z.number().int().nonnegative(),
+  totalDurationMs: z.number().nonnegative(),
+});
+export type RecomputeAggregatesResult = z.infer<typeof RecomputeAggregatesResultSchema>;

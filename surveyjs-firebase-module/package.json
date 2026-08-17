@@ -38,6 +38,7 @@
     "test:functions": "npm run test --workspace @survey-module/functions",
     "test:rules": "firebase emulators:exec --project demo-survey-module --only firestore,storage \"vitest run --config tests/rules/vitest.config.ts\"",
     "test:e2e": "playwright test",
+    "test:e2e:admin": "firebase emulators:exec --project demo-survey-module --only auth,firestore,storage,functions \"npm run seed && playwright test tests/e2e/admin.spec.ts\"",
     "smoke:staging": "npm run check:env:stage && npm run build:web:stage && npm run test:e2e",
     "typecheck": "npm run contracts:check && npm run typecheck --workspace @survey-module/web && npm run typecheck --workspace @survey-module/functions",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run test:rules && npm run build"

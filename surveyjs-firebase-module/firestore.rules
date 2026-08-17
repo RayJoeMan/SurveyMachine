@@ -131,6 +131,21 @@ service cloud.firestore {
         allow get, list: if hasAnyRole(orgId, ['org_admin']) || isSuperAdmin();
         allow create, update, delete: if false;
       }
+
+      match /branding/{docId} {
+        allow get: if isMember(orgId) || isSuperAdmin();
+        allow create, update, delete: if false;
+      }
+
+      match /invitations/{invitationId} {
+        allow get: if signedIn() && resource.data.email == request.auth.token.email;
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /platform/{docId} {
+      allow get: if signedIn();
+      allow create, update, delete: if false;
     }
 
     match /{document=**} {

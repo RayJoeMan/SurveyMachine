@@ -11,7 +11,7 @@ vi.mock("./firebase", () => ({
   },
 }));
 
-import { assertRole } from "./permissions";
+import { assertRole, assertSuperAdmin } from "./permissions";
 
 describe("assertRole", () => {
   beforeEach(() => {
@@ -49,5 +49,16 @@ describe("assertRole", () => {
     await expect(
       assertRole("org", "uid-1", ["org_admin"], "someone@example.com"),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("assertSuperAdmin", () => {
+  it("allows the configured super-admin email", () => {
+    expect(() => assertSuperAdmin("joermnd@gmail.com")).not.toThrow();
+  });
+
+  it("rejects any other account", () => {
+    expect(() => assertSuperAdmin("other@example.com")).toThrow();
+    expect(() => assertSuperAdmin(undefined)).toThrow();
   });
 });

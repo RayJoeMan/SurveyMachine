@@ -5,10 +5,12 @@ import type {
   CreateOrganizationInput,
   ExportOrganizationDataInput,
   ExportSurveyInput,
+  OrgBranding,
   SurveyActionInput,
   SurveyJsJson,
   SurveySettings,
   SurveyBranding,
+  UpdateOrganizationInput,
   UpsertSurveyInput,
 } from "@/contracts";
 import { db, functions } from "@/firebase/client";
@@ -180,4 +182,23 @@ export async function createOrganization(
   input: CreateOrganizationInput,
 ): Promise<CreateOrganizationResult> {
   return (await createOrganizationCallable(input)).data;
+}
+
+// ---------------------------------------------------------------------------
+// Organization settings + branding
+// ---------------------------------------------------------------------------
+
+export async function updateOrganization(input: UpdateOrganizationInput): Promise<string> {
+  const callable = httpsCallable<
+    UpdateOrganizationInput,
+    { ok: true; requestId: string; name: string }
+  >(functions, "updateOrganizationV1");
+  const result = await callable(input);
+  return result.data.name;
+}
+
+export async function loadOrgBranding(orgId: string): Promise<OrgBranding | null> {
+  const snapshot = await getDoc(doc(db, "organizations", orgId, "branding", "brand"));
+  if (!snapshot.exists()) return null;
+  return snapshot.data() as OrgBranding;
 }

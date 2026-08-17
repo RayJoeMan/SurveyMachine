@@ -24,7 +24,12 @@ service firebase.storage {
 
     match /public-assets/{orgId}/{fileName} {
       allow read: if true;
-      allow write: if false;
+      // Logo uploads: org_admin/super-admin only, images up to 2 MB.
+      allow write: if signedIn()
+        && fileName == 'logo'
+        && (hasAnyRole(orgId, ['org_admin']) || isSuperAdmin())
+        && request.resource.size <= 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/(png|jpeg|webp)');
     }
 
     // File-question uploads are intentionally denied until the signed upload,

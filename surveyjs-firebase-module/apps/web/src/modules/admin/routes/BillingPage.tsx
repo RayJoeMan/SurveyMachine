@@ -1,33 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
-import type { BillingInfo, BillingPlan } from "@/contracts";
+import { isSuperAdminEmail, type BillingInfo, type BillingPlan } from "@/contracts";
 import { useAuth } from "@/auth/AuthProvider";
 import { useActiveOrg } from "@/auth/OrgProvider";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import {
+  loadBillingConfig,
   loadBillingInfo,
   openBillingPortal,
   startCheckout,
+  updatePlanPricing,
 } from "@/modules/admin/data/billing.repository";
 import { LoadingState } from "@/shared/AsyncState";
 
-const PLAN_PRICING: Array<{ plan: BillingPlan; label: string; price: string; blurb: string }> = [
-  {
-    plan: "free",
-    label: "Free",
-    price: "$0",
-    blurb: "Community use with a single published survey.",
-  },
-  {
-    plan: "pro",
-    label: "Pro",
-    price: "$49/mo",
-    blurb: "Unlimited surveys, exports, and standard support.",
-  },
+const PLAN_PRICING: Array<{ plan: BillingPlan; label: string; blurb: string }> = [
+  { plan: "free", label: "Free", blurb: "Community use with a single published survey." },
+  { plan: "pro", label: "Pro", blurb: "Unlimited surveys, exports, AI analytics, and support." },
   {
     plan: "enterprise",
     label: "Enterprise",
-    price: "$199/mo",
     blurb: "Everything in Pro plus priority onboarding and support.",
   },
 ];
@@ -53,11 +44,16 @@ export function BillingPage() {
   const { user, loading: authLoading } = useAuth();
   const { activeOrgId, activeOrg, loading: orgLoading } = useActiveOrg();
   const [billing, setBilling] = useState<BillingInfo | null>(null);
+  const [proPrice, setProPrice] = useState(49);
+  const [enterprisePrice, setEnterprisePrice] = useState(199);
+  const [proInput, setProInput] = useState("49");
+  const [enterpriseInput, setEnterpriseInput] = useState("199");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState<BillingPlan | "portal" | null>(null);
+  const [busy, setBusy] = useState<BillingPlan | "portal" | "pricing" | null>(null);
 
   const isOrgAdmin = Boolean(activeOrg?.roles.includes("org_admin"));
+  const isSuperAdmin = isSuperAdminEmail(user?.email);
   const query = new URLSearchParams(window.location.search);
   const checkoutOutcome = query.get("status");
 
@@ -65,7 +61,12 @@ export function BillingPage() {
     if (!activeOrgId) return;
     setLoading(true);
     try {
-      setBilling(await loadBillingInfo(activeOrgId));
+      const [info, config] = await Promise.all([loadBillingInfo(activeOrgId), loadBillingConfig()]);
+      setBilling(info);
+      setProPrice(config.pro);
+      setEnterprisePrice(config.enterprise);
+      setProInput(String(config.pro));
+      setEnterpriseInput(String(config.enterprise));
     } catch (loadError) {
       console.error("Billing load failed", loadError);
       setError("Billing information could not be loaded.");
@@ -128,6 +129,32 @@ export function BillingPage() {
     }
   }
 
+  async function handleSavePricing(event: FormEvent) {
+    event.preventDefault();
+    const pro = Number(proInput);
+    const enterprise = Number(enterpriseInput);
+    if (!Number.isInteger(pro) || pro <= 0 || !Number.isInteger(enterprise) || enterprise <= 0) {
+      setError("Prices must be whole dollar amounts greater than zero.");
+      return;
+    }
+    setBusy("pricing");
+    setError("");
+    try {
+      await updatePlanPricing({ pro, enterprise });
+      setProPrice(pro);
+      setEnterprisePrice(enterprise);
+    } catch (pricingError) {
+      console.error("Pricing update failed", pricingError);
+      setError(
+        pricingError instanceof Error
+          ? `Pricing could not be updated: ${pricingError.message}`
+          : "Pricing could not be updated.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (authLoading || orgLoading) return <LoadingState label="Loading billing…" />;
   if (!user) return <Navigate to="/login" replace />;
   if (!activeOrgId) return <Navigate to="/admin" replace />;
@@ -137,6 +164,7 @@ export function BillingPage() {
     billing?.status === "active" ||
     billing?.status === "trialing" ||
     billing?.status === "past_due";
+  const planPrice = (plan: BillingPlan) => (plan === "pro" ? proPrice : enterprisePrice);
 
   return (
     <AdminShell>
@@ -169,7 +197,9 @@ export function BillingPage() {
               return (
                 <section key={option.plan} className={`plan-card${isCurrent ? " is-current" : ""}`}>
                   <h2>{option.label}</h2>
-                  <p className="plan-price">{option.price}</p>
+                  <p className="plan-price">
+                    {option.plan === "free" ? "$0" : `$${planPrice(option.plan)}/mo`}
+                  </p>
                   <p className="muted">{option.blurb}</p>
                   {isCurrent && <p className="plan-badge">Current plan</p>}
                   {option.plan !== "free" && isOrgAdmin && (
@@ -201,6 +231,41 @@ export function BillingPage() {
           >
             {busy === "portal" ? "Opening…" : "Manage billing"}
           </button>
+        )}
+
+        {isSuperAdmin && (
+          <section className="report-note">
+            <h2>Platform pricing</h2>
+            <p className="muted">
+              Set the monthly price for new Pro and Enterprise subscriptions. Existing subscriptions
+              keep their current price.
+            </p>
+            <form className="pricing-form" onSubmit={handleSavePricing}>
+              <label>
+                Pro (USD/month)
+                <input
+                  type="number"
+                  min={1}
+                  max={100000}
+                  value={proInput}
+                  onChange={(event) => setProInput(event.target.value)}
+                />
+              </label>
+              <label>
+                Enterprise (USD/month)
+                <input
+                  type="number"
+                  min={1}
+                  max={100000}
+                  value={enterpriseInput}
+                  onChange={(event) => setEnterpriseInput(event.target.value)}
+                />
+              </label>
+              <button type="submit" className="primary" disabled={busy === "pricing"}>
+                {busy === "pricing" ? "Saving…" : "Save pricing"}
+              </button>
+            </form>
+          </section>
         )}
 
         <p className="muted small">

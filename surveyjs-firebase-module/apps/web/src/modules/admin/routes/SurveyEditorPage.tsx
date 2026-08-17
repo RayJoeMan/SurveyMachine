@@ -11,6 +11,7 @@ import {
   deleteSurvey,
   getSurvey,
   isDraftConflictError,
+  loadOrgBranding,
   publishSurvey,
   upsertSurvey,
 } from "@/modules/admin/data/admin.repository";
@@ -147,6 +148,31 @@ export function SurveyEditorPage() {
       .finally(() => setLoading(false));
   }, [activeOrgId, routeSurveyId, user]);
 
+  // New surveys inherit the organization's branding (name, colors, logo).
+  useEffect(() => {
+    if (routeSurveyId || !activeOrgId) return;
+    let active = true;
+    void (async () => {
+      await Promise.resolve();
+      try {
+        const orgBranding = await loadOrgBranding(activeOrgId);
+        if (!active || !orgBranding) return;
+        setBranding((current) => ({
+          ...current,
+          organizationName: orgBranding.organizationName || current.organizationName,
+          logoUrl: orgBranding.logoUrl || current.logoUrl,
+          primaryColor: orgBranding.primaryColor || current.primaryColor,
+          accentColor: orgBranding.accentColor || current.accentColor,
+        }));
+      } catch {
+        // Keep defaults if the org branding cannot be read.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [activeOrgId, routeSurveyId]);
+
   const preview = useMemo(() => {
     try {
       const parsed: unknown = JSON.parse(schemaText);
@@ -236,7 +262,11 @@ export function SurveyEditorPage() {
   }
 
   async function handleClose() {
-    if (!surveyId || !activeOrgId || !window.confirm("Close this survey and stop accepting new responses?")) {
+    if (
+      !surveyId ||
+      !activeOrgId ||
+      !window.confirm("Close this survey and stop accepting new responses?")
+    ) {
       return;
     }
     setSaving(true);
@@ -255,7 +285,11 @@ export function SurveyEditorPage() {
 
   async function handleDelete() {
     if (!surveyId || !activeOrgId) return;
-    if (!window.confirm("Delete this survey and ALL of its responses permanently? This cannot be undone.")) {
+    if (
+      !window.confirm(
+        "Delete this survey and ALL of its responses permanently? This cannot be undone.",
+      )
+    ) {
       return;
     }
     setSaving(true);

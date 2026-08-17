@@ -2,6 +2,13 @@ import { HttpsError } from "firebase-functions/v2/https";
 import { isSuperAdminEmail, type SurveyModuleRole } from "../contracts";
 import { db } from "./firebase";
 
+/** Platform-level operation: only verified super-admin emails may proceed. */
+export function assertSuperAdmin(email: string | undefined | null): void {
+  if (!isSuperAdminEmail(email)) {
+    throw new HttpsError("permission-denied", "Super-admin access is required.");
+  }
+}
+
 export async function assertModuleEnabled(orgId: string): Promise<void> {
   const entitlement = await db.doc(`organizations/${orgId}/moduleEntitlements/surveys`).get();
   if (!entitlement.exists || entitlement.get("enabled") !== true) {

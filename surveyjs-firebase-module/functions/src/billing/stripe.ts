@@ -35,17 +35,20 @@ const PRICE_CACHE_TTL_MS = 5 * 60_000;
 const priceCache = new Map<string, { priceId: string; at: number }>();
 
 /**
- * Resolves a monthly Stripe price for a plan, creating the product + price
- * once and reusing it across calls (idempotent via product metadata key
- * `sm_plan`). Prices are only ever created server-side.
+ * Resolves a monthly Stripe price for a plan at the given amount, creating the
+ * product + price as needed (idempotent via product metadata `sm_plan`).
+ * Stripe prices are immutable, so when the platform price changes a NEW price
+ * is created for future checkouts; existing subscriptions keep their price.
+ * Prices are only ever created server-side.
  */
-export async function getOrCreatePlanPrice(stripe: Stripe, plan: BillingPlan): Promise<string> {
-  const monthlyUsd = BILLING_PLAN_DETAILS[plan].monthlyUsd;
-  if (monthlyUsd == null) {
-    throw new HttpsError("invalid-argument", `${plan} has no paid price.`);
-  }
-
-  const cached = priceCache.get(plan);
+export async function getOrCreatePlanPrice(
+  stripe: Stripe,
+  plan: BillingPlan,
+  monthlyUsd: number,
+): Promise<string> {
+  const unitAmount = monthlyUsd * 100;
+  const cacheKey = `${plan}:${unitAmount}`;
+  const cached = priceCache.get(cacheKey);
   if (cached && Date.now() - cached.at < PRICE_CACHE_TTL_MS) return cached.priceId;
 
   const existing = await stripe.products
@@ -56,11 +59,14 @@ export async function getOrCreatePlanPrice(stripe: Stripe, plan: BillingPlan): P
       .list({ product: existing.id, limit: 100, active: true })
       .then((result) =>
         result.data.find(
-          (entry) => entry.type === "recurring" && entry.recurring?.interval === "month",
+          (entry) =>
+            entry.type === "recurring" &&
+            entry.recurring?.interval === "month" &&
+            entry.unit_amount === unitAmount,
         ),
       );
     if (price) {
-      priceCache.set(plan, { priceId: price.id, at: Date.now() });
+      priceCache.set(cacheKey, { priceId: price.id, at: Date.now() });
       return price.id;
     }
   }
@@ -74,10 +80,10 @@ export async function getOrCreatePlanPrice(stripe: Stripe, plan: BillingPlan): P
   const created = await stripe.prices.create({
     product: product.id,
     currency: "usd",
-    unit_amount: monthlyUsd * 100,
+    unit_amount: unitAmount,
     recurring: { interval: "month" },
     metadata: { sm_plan: plan },
   });
-  priceCache.set(plan, { priceId: created.id, at: Date.now() });
+  priceCache.set(cacheKey, { priceId: created.id, at: Date.now() });
   return created.id;
 }

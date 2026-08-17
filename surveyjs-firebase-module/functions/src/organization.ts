@@ -5,13 +5,14 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import {
   CreateOrganizationInputSchema,
   ExportOrganizationDataInputSchema,
+  UpdateOrganizationInputSchema,
   isReservedOrgId,
   slugifyOrganizationName,
 } from "./contracts";
 import { safeAudit } from "./core/audit";
 import { parseInput } from "./core/errors";
 import { db, getDefaultBucket } from "./core/firebase";
-import { assertRole } from "./core/permissions";
+import { assertModuleEnabled, assertRole } from "./core/permissions";
 
 const enforceAppCheck = defineBoolean("ENFORCE_APP_CHECK", { default: false });
 const exportUrlTtlMinutes = defineInt("EXPORT_URL_TTL_MINUTES", { default: 15 });
@@ -171,3 +172,52 @@ export const exportOrganizationDataV1 = onCall(
     };
   },
 );
+
+/**
+ * Updates organization-level settings: display name and/or org branding
+ * (logo URL and brand colors). Org_admin only; branding is stored in
+ * `organizations/{orgId}/branding` and used as the default for new surveys.
+ */
+export const updateOrganizationV1 = onCall({ enforceAppCheck, cors: true }, async (request) => {
+  const requestId = randomUUID();
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign-in is required.");
+  const input = parseInput(UpdateOrganizationInputSchema, request.data);
+  await assertModuleEnabled(input.orgId);
+  await assertRole(input.orgId, uid, ["org_admin"], request.auth?.token?.email);
+
+  const orgRef = db.doc(`organizations/${input.orgId}`);
+  const org = await orgRef.get();
+  if (!org.exists) throw new HttpsError("not-found", "Organization not found.");
+
+  let name = org.get("name") as string;
+  const updates: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  if (input.name && input.name !== name) {
+    name = input.name;
+    updates.name = name;
+  }
+  await orgRef.update(updates);
+
+  if (input.branding) {
+    await db.doc(`organizations/${input.orgId}/branding/brand`).set(
+      {
+        ...input.branding,
+        updatedBy: uid,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  }
+
+  await safeAudit({
+    orgId: input.orgId,
+    actorUid: uid,
+    action: "organization.updated",
+    resourceType: "organization",
+    resourceId: input.orgId,
+    requestId,
+    details: { name, brandingChanged: Boolean(input.branding) },
+  });
+
+  return { ok: true as const, requestId, name };
+});

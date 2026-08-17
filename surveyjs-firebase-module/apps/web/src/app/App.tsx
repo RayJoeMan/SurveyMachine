@@ -20,6 +20,16 @@ const ForgotPasswordPage = lazy(() =>
 const ReportPage = lazy(() =>
   import("@/modules/admin/routes/ReportPage").then((module) => ({ default: module.ReportPage })),
 );
+const OrgSettingsPage = lazy(() =>
+  import("@/modules/admin/routes/OrgSettingsPage").then((module) => ({
+    default: module.OrgSettingsPage,
+  })),
+);
+const MembersPage = lazy(() =>
+  import("@/modules/admin/routes/MembersPage").then((module) => ({
+    default: module.MembersPage,
+  })),
+);
 const BillingPage = lazy(() =>
   import("@/modules/admin/routes/BillingPage").then((module) => ({
     default: module.BillingPage,
@@ -66,6 +76,8 @@ export function App() {
         <Route path="/legal/refunds" element={<RefundsAndCancellations />} />
         <Route path="/admin" element={<AdminHomePage />} />
         <Route path="/admin/billing" element={<BillingPage />} />
+        <Route path="/admin/settings" element={<OrgSettingsPage />} />
+        <Route path="/admin/members" element={<MembersPage />} />
         <Route path="/admin/surveys/new" element={<SurveyEditorPage />} />
         <Route path="/admin/surveys/:surveyId/edit" element={<SurveyEditorPage />} />
         <Route path="/admin/surveys/:surveyId/report" element={<ReportPage />} />

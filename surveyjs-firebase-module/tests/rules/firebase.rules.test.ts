@@ -5,7 +5,17 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { deleteDoc, doc, getDoc, getDocs, collection, collectionGroup, query, setDoc, where } from "firebase/firestore";
+import {
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  collection,
+  collectionGroup,
+  query,
+  setDoc,
+  where,
+} from "firebase/firestore";
 import { getBytes, ref, uploadBytes } from "firebase/storage";
 import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
 
@@ -153,9 +163,7 @@ describe("Firestore private boundary", () => {
     await seed();
     const adminFirestore = testEnv.authenticatedContext("admin").firestore();
     await assertSucceeds(
-      getDoc(
-        doc(adminFirestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`),
-      ),
+      getDoc(doc(adminFirestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`)),
     );
     const editorFirestore = testEnv.authenticatedContext("editor").firestore();
     await assertFails(
@@ -173,22 +181,12 @@ describe("Firestore private boundary", () => {
     });
     const firestore = testEnv.authenticatedContext("outsider").firestore();
     await assertSucceeds(
-      getDocs(
-        query(
-          collectionGroup(firestore, "members"),
-          where("uid", "==", "outsider"),
-        ),
-      ),
+      getDocs(query(collectionGroup(firestore, "members"), where("uid", "==", "outsider"))),
     );
     // A member document that does not carry the caller's uid must be filtered out.
     const reporterFirestore = testEnv.authenticatedContext("outsider").firestore();
     await assertFails(
-      getDocs(
-        query(
-          collectionGroup(reporterFirestore, "members"),
-          where("uid", "==", "reporter"),
-        ),
-      ),
+      getDocs(query(collectionGroup(reporterFirestore, "members"), where("uid", "==", "reporter"))),
     );
   });
 });
@@ -254,9 +252,76 @@ describe("Super-admin boundary", () => {
 
   it("denies super-admin visibility to a different account email", async () => {
     await seed();
-    const firestore = testEnv.authenticatedContext("notsuper", { email: "other@gmail.com" }).firestore();
+    const firestore = testEnv
+      .authenticatedContext("notsuper", { email: "other@gmail.com" })
+      .firestore();
+    await assertFails(getDoc(doc(firestore, `organizations/${orgId}/surveys/${surveyId}`)));
+  });
+});
+
+describe("Platform config and invitations boundary", () => {
+  it("lets any signed-in user read platform billing config", async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "platform/billingConfig"), {
+        pro: 49,
+        enterprise: 199,
+      });
+    });
+    const firestore = testEnv.authenticatedContext("outsider").firestore();
+    await assertSucceeds(getDoc(doc(firestore, "platform/billingConfig")));
+  });
+
+  it("denies direct client writes to platform config", async () => {
+    await seed();
+    const firestore = testEnv
+      .authenticatedContext("superadmin", { email: "joermnd@gmail.com" })
+      .firestore();
+    await assertFails(setDoc(doc(firestore, "platform/billingConfig"), { pro: 1, enterprise: 2 }));
+  });
+
+  it("lets members read org branding but denies writes", async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `organizations/${orgId}/branding/brand`), {
+        organizationName: "Test",
+        primaryColor: "#123a63",
+        accentColor: "#f4b942",
+      });
+    });
+    const memberFirestore = testEnv.authenticatedContext("editor").firestore();
+    await assertSucceeds(getDoc(doc(memberFirestore, `organizations/${orgId}/branding/brand`)));
+    const adminFirestore = testEnv.authenticatedContext("admin").firestore();
     await assertFails(
-      getDoc(doc(firestore, `organizations/${orgId}/surveys/${surveyId}`)),
+      setDoc(doc(adminFirestore, `organizations/${orgId}/branding/brand`), {
+        organizationName: "Hacked",
+      }),
+    );
+  });
+
+  it("lets users read only their own invitation", async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), `organizations/${orgId}/invitations/editor@example.com`),
+        {
+          email: "editor@example.com",
+          roles: ["survey_editor"],
+          status: "pending",
+        },
+      );
+    });
+    const editorFirestore = testEnv
+      .authenticatedContext("editor", { email: "editor@example.com" })
+      .firestore();
+    await assertSucceeds(
+      getDoc(doc(editorFirestore, `organizations/${orgId}/invitations/editor@example.com`)),
+    );
+    const outsiderFirestore = testEnv
+      .authenticatedContext("outsider", { email: "outsider@example.com" })
+      .firestore();
+    await assertFails(
+      getDoc(doc(outsiderFirestore, `organizations/${orgId}/invitations/editor@example.com`)),
     );
   });
 });
@@ -281,6 +346,34 @@ describe("Storage boundary", () => {
     });
     const storage = testEnv.authenticatedContext("reporter").storage();
     await assertSucceeds(getBytes(ref(storage, path)));
+  });
+
+  it("allows org admins to upload a small image logo", async () => {
+    await seed();
+    const storage = testEnv.authenticatedContext("admin").storage();
+    await assertSucceeds(
+      uploadBytes(
+        ref(storage, `public-assets/${orgId}/logo`),
+        new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+        { contentType: "image/png" },
+      ),
+    );
+  });
+
+  it("denies non-admins and non-images from uploading a logo", async () => {
+    await seed();
+    const editorStorage = testEnv.authenticatedContext("editor").storage();
+    await assertFails(
+      uploadBytes(ref(editorStorage, `public-assets/${orgId}/logo`), new Uint8Array([1]), {
+        contentType: "image/png",
+      }),
+    );
+    const adminStorage = testEnv.authenticatedContext("admin").storage();
+    await assertFails(
+      uploadBytes(ref(adminStorage, `public-assets/${orgId}/logo`), new Uint8Array([1]), {
+        contentType: "text/html",
+      }),
+    );
   });
 
   it("denies survey uploads until the upload workflow is implemented", async () => {

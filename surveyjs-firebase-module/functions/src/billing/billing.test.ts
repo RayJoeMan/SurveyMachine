@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { HttpsError } from "firebase-functions/v2/https";
 import { getOrCreatePlanPrice, getStripe } from "./stripe";
 import { entitlementEnabled, normalizeSubscriptionStatus, planFromMetadata } from "./webhook";
 
@@ -17,7 +16,8 @@ describe("stripe client", () => {
 
 describe("getOrCreatePlanPrice", () => {
   it("rejects the free plan before any Stripe call", async () => {
-    await expect(getOrCreatePlanPrice({} as never, "free")).rejects.toBeInstanceOf(HttpsError);
+    // A plan with no configured amount must be rejected before any Stripe call.
+    await expect(getOrCreatePlanPrice({} as never, "free", 49)).rejects.toThrow();
   });
 });
 

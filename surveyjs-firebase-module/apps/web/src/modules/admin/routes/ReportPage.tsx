@@ -12,6 +12,7 @@ import {
   type QuestionAggregates,
   type SurveySummary,
 } from "@/modules/admin/data/admin.repository";
+import { askSurveyData } from "@/modules/admin/data/billing.repository";
 import { LoadingState } from "@/shared/AsyncState";
 
 export function ReportPage() {
@@ -24,6 +25,10 @@ export function ReportPage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   useEffect(() => {
     if (!user || !activeOrgId) return;
@@ -63,6 +68,30 @@ export function ReportPage() {
       setError("The CSV export could not be created. Check your role and try again.");
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleAsk() {
+    if (!activeOrgId || question.trim().length < 3) return;
+    setAsking(true);
+    setAiError("");
+    setAnswer("");
+    try {
+      const result = await askSurveyData({
+        orgId: activeOrgId,
+        surveyId,
+        question: question.trim(),
+      });
+      setAnswer(result.answer);
+    } catch (askError) {
+      console.error("AI question failed", askError);
+      setAiError(
+        askError instanceof Error
+          ? askError.message
+          : "The question could not be answered. AI analytics is part of the Pro and Enterprise plans.",
+      );
+    } finally {
+      setAsking(false);
     }
   }
 
@@ -126,6 +155,43 @@ export function ReportPage() {
           <strong>{averageSeconds ? `${averageSeconds}s` : "—"}</strong>
         </article>
       </div>
+
+      <section className="report-note">
+        <h2>Ask about this data</h2>
+        <p>Ask a natural-language question about the survey results (Pro and Enterprise plans).</p>
+        <form
+          className="ask-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleAsk();
+          }}
+        >
+          <label className="sr-only" htmlFor="ask-question">
+            Your question
+          </label>
+          <textarea
+            id="ask-question"
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="e.g. Which priority was selected most often?"
+            maxLength={1000}
+            rows={2}
+          />
+          <button type="submit" className="primary" disabled={asking || question.trim().length < 3}>
+            {asking ? "Analyzing…" : "Ask"}
+          </button>
+        </form>
+        {aiError && (
+          <div className="inline-message inline-message--error" role="alert">
+            {aiError}
+          </div>
+        )}
+        {answer && (
+          <div className="ai-answer" role="status">
+            <p>{answer}</p>
+          </div>
+        )}
+      </section>
 
       <section className="report-note">
         <h2>Question distributions</h2>

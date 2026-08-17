@@ -45,6 +45,16 @@ interface OrgContextValue {
 
 const STORAGE_KEY = "surveyModule.activeOrgId";
 
+/**
+ * For a collectionGroup query on `members`, each document is
+ * organizations/{orgId}/members/{uid}; the document id is the user's uid, so
+ * the organization id must be read from the document path.
+ */
+function orgIdFromMemberPath(path: string): string {
+  const parts = path.split("/");
+  return parts.length >= 3 ? parts[parts.length - 3] : "";
+}
+
 const OrgContext = createContext<OrgContextValue | null>(null);
 
 export function OrgProvider({ children }: { children: ReactNode }) {
@@ -84,7 +94,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
             );
         const loaded = await Promise.all(
           snapshot.docs.map(async (snap): Promise<OrgMembership> => {
-            const orgId = snap.id;
+            const orgId = isSuperAdmin ? snap.id : orgIdFromMemberPath(snap.ref.path);
             let name = orgId;
             if (isSuperAdmin) {
               if (typeof snap.get("name") === "string") {
