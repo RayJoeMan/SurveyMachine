@@ -14,6 +14,8 @@ const environmentSchema = z.object({
   /** Optional in a multi-tenant deployment; leave empty to require an organization picker. */
   VITE_DEFAULT_ORG_ID: z.string().optional().default(""),
   VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: z.string().optional(),
+  /** Enable App Check token acquisition on the client. Default off so restricted networks (e.g. sandboxed browsers) don't hang callables. */
+  VITE_APP_CHECK_ENABLED: z.enum(["true", "false"]).default("false"),
   VITE_SENTRY_DSN: z.string().optional(),
 });
 
@@ -39,5 +41,6 @@ export const env = {
   useEmulators: parsed.data.VITE_USE_EMULATORS === "true",
   defaultOrgId: parsed.data.VITE_DEFAULT_ORG_ID,
   recaptchaEnterpriseSiteKey: parsed.data.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY || null,
+  appCheckEnabled: parsed.data.VITE_APP_CHECK_ENABLED === "true",
   sentryDsn: parsed.data.VITE_SENTRY_DSN || null,
 } as const;

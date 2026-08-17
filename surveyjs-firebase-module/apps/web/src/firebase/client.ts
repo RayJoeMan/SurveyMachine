@@ -33,7 +33,7 @@ if (!env.useEmulators && env.measurementId) {
   });
 }
 
-if (!env.useEmulators && env.recaptchaEnterpriseSiteKey) {
+if (!env.useEmulators && env.recaptchaEnterpriseSiteKey && env.appCheckEnabled) {
   initializeAppCheck(app, {
     provider: new ReCaptchaEnterpriseProvider(env.recaptchaEnterpriseSiteKey),
     isTokenAutoRefreshEnabled: true,
