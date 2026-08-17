@@ -4,7 +4,8 @@ import { useAuth } from "@/auth/AuthProvider";
 import { LoadingState } from "@/shared/AsyncState";
 
 export function LoginPage() {
-  const { user, loading, signInWithEmail, signInWithGoogle } = useAuth();
+  const { user, loading, signInWithEmail, signInWithGoogle, redirectError, clearRedirectError } =
+    useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -34,9 +35,11 @@ export function LoginPage() {
   async function handleGoogleSignIn() {
     setSubmitting(true);
     setError("");
+    clearRedirectError();
     try {
       await signInWithGoogle();
-      navigate(returnTo, { replace: true });
+      // With the redirect flow the page navigates to Google; on return the
+      // provider processes the result and redirectError reports any failure.
     } catch (signInError) {
       console.error("Google sign in failed", signInError);
       setError("Google sign-in was not completed.");
@@ -74,9 +77,9 @@ export function LoginPage() {
         <Link className="login-help" to="/forgot-password">
           Forgot password?
         </Link>
-        {error && (
+        {(error || redirectError) && (
           <p className="form-error" role="alert">
-            {error}
+            {error || redirectError}
           </p>
         )}
         <button className="button" disabled={submitting} type="submit">

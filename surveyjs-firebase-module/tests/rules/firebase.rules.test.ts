@@ -5,17 +5,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import {
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  collection,
-  collectionGroup,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
+import { deleteDoc, doc, getDoc, getDocs, collection, collectionGroup, query, setDoc, where } from "firebase/firestore";
 import { getBytes, ref, uploadBytes } from "firebase/storage";
 import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
 
@@ -163,7 +153,9 @@ describe("Firestore private boundary", () => {
     await seed();
     const adminFirestore = testEnv.authenticatedContext("admin").firestore();
     await assertSucceeds(
-      getDoc(doc(adminFirestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`)),
+      getDoc(
+        doc(adminFirestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`),
+      ),
     );
     const editorFirestore = testEnv.authenticatedContext("editor").firestore();
     await assertFails(
@@ -181,58 +173,90 @@ describe("Firestore private boundary", () => {
     });
     const firestore = testEnv.authenticatedContext("outsider").firestore();
     await assertSucceeds(
-      getDocs(query(collectionGroup(firestore, "members"), where("uid", "==", "outsider"))),
+      getDocs(
+        query(
+          collectionGroup(firestore, "members"),
+          where("uid", "==", "outsider"),
+        ),
+      ),
     );
     // A member document that does not carry the caller's uid must be filtered out.
     const reporterFirestore = testEnv.authenticatedContext("outsider").firestore();
     await assertFails(
-      getDocs(query(collectionGroup(reporterFirestore, "members"), where("uid", "==", "reporter"))),
+      getDocs(
+        query(
+          collectionGroup(reporterFirestore, "members"),
+          where("uid", "==", "reporter"),
+        ),
+      ),
     );
   });
 });
 
-describe("Billing boundary", () => {
-  async function seedBilling() {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), `organizations/${orgId}/billing/subscription`), {
-        orgId,
-        plan: "pro",
-        status: "active",
-        stripeCustomerId: "cus_test",
-        stripeSubscriptionId: "sub_test",
-      });
-    });
+describe("Super-admin boundary", () => {
+  function superAdminFirestore() {
+    // authenticatedContext(uid, tokenOptions) lets us set the token email.
+    return testEnv.authenticatedContext("superadmin", { email: "joermnd@gmail.com" }).firestore();
   }
 
-  it("allows org admins to read billing and denies editors", async () => {
+  it("lists every organization without a membership", async () => {
     await seed();
-    await seedBilling();
-    const adminFirestore = testEnv.authenticatedContext("admin").firestore();
+    await assertSucceeds(getDocs(collection(superAdminFirestore(), "organizations")));
+  });
+
+  it("reads private surveys, responses, and outbox without a membership", async () => {
+    await seed();
+    const firestore = superAdminFirestore();
+    await assertSucceeds(getDoc(doc(firestore, `organizations/${orgId}/surveys/${surveyId}`)));
     await assertSucceeds(
-      getDoc(doc(adminFirestore, `organizations/${orgId}/billing/subscription`)),
+      getDoc(doc(firestore, `organizations/${orgId}/surveys/${surveyId}/responses/response-1`)),
     );
-    const editorFirestore = testEnv.authenticatedContext("editor").firestore();
-    await assertFails(getDoc(doc(editorFirestore, `organizations/${orgId}/billing/subscription`)));
+    await assertSucceeds(
+      getDoc(doc(firestore, `organizations/${orgId}/surveys/${surveyId}/outbox/event-1`)),
+    );
   });
 
-  it("allows a super-admin to read billing without a membership", async () => {
+  it("reads audit logs as a super-admin", async () => {
     await seed();
-    await seedBilling();
-    const firestore = testEnv
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `organizations/${orgId}/auditLogs/audit-1`), {
+        action: "org.export",
+      });
+    });
+    const firestore = superAdminFirestore();
+    await assertSucceeds(getDoc(doc(firestore, `organizations/${orgId}/auditLogs/audit-1`)));
+  });
+
+  it("reads a storage export as a super-admin", async () => {
+    await seed();
+    const path = `survey-exports/${orgId}/${surveyId}/superadmin.csv`;
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await uploadBytes(ref(context.storage(), path), new TextEncoder().encode("ok"));
+    });
+    const storage = testEnv
       .authenticatedContext("superadmin", { email: "joermnd@gmail.com" })
-      .firestore();
-    await assertSucceeds(getDoc(doc(firestore, `organizations/${orgId}/billing/subscription`)));
+      .storage();
+    await assertSucceeds(getBytes(ref(storage, path)));
   });
 
-  it("denies every direct client billing write", async () => {
+  it("still denies direct client writes even for a super-admin", async () => {
     await seed();
-    await seedBilling();
-    const firestore = testEnv.authenticatedContext("admin").firestore();
+    const firestore = superAdminFirestore();
     await assertFails(
-      setDoc(doc(firestore, `organizations/${orgId}/billing/subscription`), {
-        plan: "enterprise",
-        status: "active",
+      setDoc(doc(firestore, `organizations/${orgId}/surveys/${surveyId}/responses/injected`), {
+        status: "completed",
       }),
+    );
+    await assertFails(
+      setDoc(doc(firestore, `organizations/forged-org`), { orgId: "forged-org", name: "Forged" }),
+    );
+  });
+
+  it("denies super-admin visibility to a different account email", async () => {
+    await seed();
+    const firestore = testEnv.authenticatedContext("notsuper", { email: "other@gmail.com" }).firestore();
+    await assertFails(
+      getDoc(doc(firestore, `organizations/${orgId}/surveys/${surveyId}`)),
     );
   });
 });
