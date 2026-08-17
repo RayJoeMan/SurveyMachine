@@ -191,6 +191,52 @@ describe("Firestore private boundary", () => {
   });
 });
 
+describe("Billing boundary", () => {
+  async function seedBilling() {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `organizations/${orgId}/billing/subscription`), {
+        orgId,
+        plan: "pro",
+        status: "active",
+        stripeCustomerId: "cus_test",
+        stripeSubscriptionId: "sub_test",
+      });
+    });
+  }
+
+  it("allows org admins to read billing and denies editors", async () => {
+    await seed();
+    await seedBilling();
+    const adminFirestore = testEnv.authenticatedContext("admin").firestore();
+    await assertSucceeds(
+      getDoc(doc(adminFirestore, `organizations/${orgId}/billing/subscription`)),
+    );
+    const editorFirestore = testEnv.authenticatedContext("editor").firestore();
+    await assertFails(getDoc(doc(editorFirestore, `organizations/${orgId}/billing/subscription`)));
+  });
+
+  it("allows a super-admin to read billing without a membership", async () => {
+    await seed();
+    await seedBilling();
+    const firestore = testEnv
+      .authenticatedContext("superadmin", { email: "joermnd@gmail.com" })
+      .firestore();
+    await assertSucceeds(getDoc(doc(firestore, `organizations/${orgId}/billing/subscription`)));
+  });
+
+  it("denies every direct client billing write", async () => {
+    await seed();
+    await seedBilling();
+    const firestore = testEnv.authenticatedContext("admin").firestore();
+    await assertFails(
+      setDoc(doc(firestore, `organizations/${orgId}/billing/subscription`), {
+        plan: "enterprise",
+        status: "active",
+      }),
+    );
+  });
+});
+
 describe("Storage boundary", () => {
   it("denies direct client writes to export paths", async () => {
     await seed();

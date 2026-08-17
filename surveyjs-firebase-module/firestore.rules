@@ -126,6 +126,11 @@ service cloud.firestore {
         allow read: if hasAnyRole(orgId, ['org_admin']) || isSuperAdmin();
         allow create, update, delete: if false;
       }
+
+      match /billing/{docId} {
+        allow get, list: if hasAnyRole(orgId, ['org_admin']) || isSuperAdmin();
+        allow create, update, delete: if false;
+      }
     }
 
     match /{document=**} {

@@ -72,3 +72,12 @@ When disabled:
 ## Disable, uninstall, and rollback
 
 Disable first. Export data. Confirm retention/deletion obligations. Remove navigation. Keep functions/rules available until data export and deletion are complete. Uninstalling the frontend must not imply data deletion. See `docs/OPERATIONS.md`.
+
+## Billing (Stripe)
+
+- `createCheckoutSessionV1` (org_admin) — starts a live Stripe Checkout subscription session for a paid plan. Products/prices are created lazily and idempotently (product metadata `sm_plan`); the entitlement is granted ONLY by the verified webhook.
+- `createBillingPortalSessionV1` (org_admin) — opens Stripe's billing portal (invoices, payment method, cancellation).
+- `stripeWebhookV1` (HTTPS endpoint) — verifies the `stripe-signature` against `STRIPE_WEBHOOK_SECRET`, then reconciles the org `billing/subscription` document and the survey module entitlement from: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`. Idempotent via per-event receipts in `billingEvents/{eventId}`; never trusts a redirect alone.
+- Billing document: `organizations/{orgId}/billing/subscription` (plan, status, stripeCustomerId, stripeSubscriptionId, currentPeriodEnd). Firestore rule: read by `org_admin`/super-admin only; client writes denied.
+- Plans: `free` / `pro` ($49/mo) / `enterprise` ($199/mo), defined in `BILLING_PLAN_DETAILS` in the contracts package.
+- Configuration (functions environment, gitignored `functions/.env`): `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`.

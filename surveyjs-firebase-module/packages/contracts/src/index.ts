@@ -229,3 +229,70 @@ export const MAX_SURVEY_SCHEMA_BYTES = 700_000;
 export function jsonByteLength(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
+
+// ---------------------------------------------------------------------------
+// Billing (Stripe) contracts
+// ---------------------------------------------------------------------------
+
+export const BillingPlanSchema = z.enum(["free", "pro", "enterprise"]);
+export type BillingPlan = z.infer<typeof BillingPlanSchema>;
+
+export const BillingStatusSchema = z.enum([
+  "none",
+  "incomplete",
+  "trialing",
+  "active",
+  "past_due",
+  "canceled",
+]);
+export type BillingStatus = z.infer<typeof BillingStatusSchema>;
+
+export const BillingInfoSchema = z.object({
+  orgId: OrganizationIdSchema,
+  plan: BillingPlanSchema,
+  status: BillingStatusSchema,
+  stripeCustomerId: z.string().min(1).optional(),
+  stripeSubscriptionId: z.string().min(1).optional(),
+  currentPeriodEnd: z.iso.datetime().nullable().optional(),
+  updatedAt: z.unknown().optional(),
+});
+export type BillingInfo = z.infer<typeof BillingInfoSchema>;
+
+export const CreateCheckoutInputSchema = z.object({
+  orgId: OrganizationIdSchema,
+  plan: BillingPlanSchema,
+  successUrl: z.url().max(2_048),
+  cancelUrl: z.url().max(2_048),
+});
+export type CreateCheckoutInput = z.input<typeof CreateCheckoutInputSchema>;
+
+export const CreateBillingPortalInputSchema = z.object({
+  orgId: OrganizationIdSchema,
+  returnUrl: z.url().max(2_048),
+});
+export type CreateBillingPortalInput = z.input<typeof CreateBillingPortalInputSchema>;
+
+export const CheckoutResultSchema = CallableResultSchema.extend({
+  url: z.url(),
+  plan: BillingPlanSchema,
+});
+export type CheckoutResult = z.infer<typeof CheckoutResultSchema>;
+
+export const BillingPortalResultSchema = CallableResultSchema.extend({
+  url: z.url(),
+});
+export type BillingPortalResult = z.infer<typeof BillingPortalResultSchema>;
+
+/** Server-side truth for plan pricing/limits; the web app mirrors the labels. */
+export const BILLING_PLAN_DETAILS: Record<
+  BillingPlan,
+  { label: string; monthlyUsd: number | null; blurb: string }
+> = {
+  free: { label: "Free", monthlyUsd: null, blurb: "Community use with a single published survey." },
+  pro: { label: "Pro", monthlyUsd: 49, blurb: "Unlimited surveys, exports, and standard support." },
+  enterprise: {
+    label: "Enterprise",
+    monthlyUsd: 199,
+    blurb: "Everything in Pro plus priority onboarding and support.",
+  },
+};

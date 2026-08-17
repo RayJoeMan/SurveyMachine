@@ -14,6 +14,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </Link>
         <nav aria-label="Administration">
           <Link to="/admin">Surveys</Link>
+          <Link to="/admin/billing">Billing</Link>
           {memberships.length > 1 ? (
             <label className="org-switcher">
               <span className="sr-only">Organization</span>
