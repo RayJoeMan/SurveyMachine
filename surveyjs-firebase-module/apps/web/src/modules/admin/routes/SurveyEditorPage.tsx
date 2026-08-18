@@ -112,9 +112,7 @@ export function SurveyEditorPage() {
   const [publishedVersion, setPublishedVersion] = useState(0);
   const [title, setTitle] = useState("New community survey");
   const [description, setDescription] = useState("Tell us about your experience.");
-  const [schemaText, setSchemaText] = useState(JSON.stringify(defaultSurveySchema, null, 2));
   const [initialBuilder] = useState(() => surveyJsToBuilder(defaultSurveySchema));
-  const [mode, setMode] = useState<"builder" | "json">("builder");
   const [questions, setQuestions] = useState<BuilderQuestion[]>(initialBuilder.questions);
   const [extras, setExtras] = useState<BuilderExtras>(initialBuilder.extras);
   const [builderWarnings, setBuilderWarnings] = useState<string[]>(initialBuilder.warnings);
@@ -143,7 +141,6 @@ export function SurveyEditorPage() {
         setPublishedVersion(Number(survey.publishedVersion || 0));
         setTitle(survey.title);
         setDescription(survey.description);
-        setSchemaText(JSON.stringify(survey.schema, null, 2));
         const parsed = surveyJsToBuilder(survey.schema);
         setQuestions(parsed.questions);
         setExtras(parsed.extras);
@@ -191,58 +188,25 @@ export function SurveyEditorPage() {
   );
 
   const preview = useMemo(() => {
-    let parsed: unknown;
-    if (mode === "builder") {
-      parsed = builderSchema;
-    } else {
-      try {
-        parsed = JSON.parse(schemaText);
-      } catch (previewError) {
-        return {
-          model: null,
-          error: previewError instanceof Error ? previewError.message : "Invalid SurveyJS JSON.",
-          diagnostics: [],
-        };
-      }
-    }
     try {
-      const model = new Model(parsed);
-      model.setDevice(previewMode);
-      return { model, error: "", diagnostics: analyzeSurveySchema(parsed) };
+      const model = new Model(builderSchema);
+      return { model, error: "", diagnostics: analyzeSurveySchema(builderSchema) };
     } catch (previewError) {
       return {
         model: null,
-        error: previewError instanceof Error ? previewError.message : "Invalid SurveyJS JSON.",
+        error: previewError instanceof Error ? previewError.message : "The survey could not be rendered.",
         diagnostics: [],
       };
     }
-  }, [builderSchema, mode, previewMode, schemaText]);
+  }, [builderSchema]);
 
   const hasBlockingDiagnostics = preview.diagnostics.some(
     (diagnostic) => diagnostic.level === "error",
   );
 
-  function switchMode(nextMode: "builder" | "json") {
-    if (nextMode === mode) return;
-    if (nextMode === "json") {
-      setSchemaText(JSON.stringify(builderSchema, null, 2));
-    } else {
-      try {
-        const parsed = surveyJsToBuilder(JSON.parse(schemaText));
-        setQuestions(parsed.questions);
-        setExtras(parsed.extras);
-        setBuilderWarnings(parsed.warnings);
-      } catch {
-        setError("The JSON is invalid; fix it before switching to the visual builder.");
-        return;
-      }
-    }
-    setMode(nextMode);
-  }
-
   function buildInput() {
     if (!activeOrgId) throw new Error("No organization selected.");
-    const parsedSchema: unknown = mode === "builder" ? builderSchema : JSON.parse(schemaText);
+    const parsedSchema: unknown = builderSchema;
     const responseLimit = responseLimitInput ? Number(responseLimitInput) : null;
     const closesAt = closesAtInput ? new Date(closesAtInput).toISOString() : null;
     return UpsertSurveyInputSchema.parse({
@@ -310,11 +274,7 @@ export function SurveyEditorPage() {
   }
 
   async function handleClose() {
-    if (
-      !surveyId ||
-      !activeOrgId ||
-      !window.confirm("Close this survey and stop accepting new responses?")
-    ) {
+    if (!surveyId || !activeOrgId || !window.confirm("Close this survey and stop accepting new responses?")) {
       return;
     }
     setSaving(true);
@@ -333,11 +293,7 @@ export function SurveyEditorPage() {
 
   async function handleDelete() {
     if (!surveyId || !activeOrgId) return;
-    if (
-      !window.confirm(
-        "Delete this survey and ALL of its responses permanently? This cannot be undone.",
-      )
-    ) {
+    if (!window.confirm("Delete this survey and ALL of its responses permanently? This cannot be undone.")) {
       return;
     }
     setSaving(true);
@@ -376,8 +332,8 @@ export function SurveyEditorPage() {
           </Link>
           <h1>{surveyId ? "Edit survey" : "New survey"}</h1>
           <p>
-            Build questions visually with conditional logic, or switch to the JSON editor. Preview
-            every branch before publishing.
+            Build questions visually with conditional logic, and preview every branch before
+            publishing.
           </p>
         </div>
         <span className={`status-badge status-badge--${status}`}>{status}</span>
@@ -510,47 +466,14 @@ export function SurveyEditorPage() {
                   Build questions visually. Conditional logic and every answer type are supported.
                 </p>
               </div>
-              {preview.error && <span className="validation-chip">Invalid JSON</span>}
+              {preview.error && <span className="validation-chip">Preview error</span>}
             </div>
-            <div className="editor-mode-toggle" role="tablist" aria-label="Editor mode">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === "builder"}
-                className={mode === "builder" ? "is-active" : ""}
-                onClick={() => switchMode("builder")}
-              >
-                Visual builder
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === "json"}
-                className={mode === "json" ? "is-active" : ""}
-                onClick={() => switchMode("json")}
-              >
-                JSON
-              </button>
-            </div>
-            {mode === "builder" ? (
-              <QuestionBuilder
-                questions={questions}
-                onChange={setQuestions}
-                extrasCount={extras.elements.length}
-                warnings={builderWarnings}
-              />
-            ) : (
-              <label>
-                <span className="sr-only">SurveyJS JSON</span>
-                <textarea
-                  className="code-editor"
-                  value={schemaText}
-                  onChange={(event) => setSchemaText(event.target.value)}
-                  rows={30}
-                  spellCheck={false}
-                />
-              </label>
-            )}
+            <QuestionBuilder
+              questions={questions}
+              onChange={setQuestions}
+              extrasCount={extras.elements.length}
+              warnings={builderWarnings}
+            />
             {preview.error && (
               <p className="form-error" role="alert">
                 {preview.error}

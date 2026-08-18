@@ -270,8 +270,8 @@ export function QuestionBuilder({
 
       {extrasCount > 0 && (
         <p className="builder-note">
-          {extrasCount} custom element{extrasCount === 1 ? "" : "s"} from the JSON are preserved
-          and will be included when you save. Use the JSON tab to edit them.
+          {extrasCount} custom element{extrasCount === 1 ? "" : "s"} from the original JSON are
+          preserved automatically and will be included when you save.
         </p>
       )}
       {warnings.map((warning) => (
