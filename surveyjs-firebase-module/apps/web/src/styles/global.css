@@ -976,3 +976,235 @@ tbody tr:last-child td {
   white-space: pre-wrap;
   max-width: 42rem;
 }
+
+/* ---- Visual question builder ---- */
+.editor-mode-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f4f6f8;
+  padding: 0.2rem;
+}
+.editor-mode-toggle button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+.editor-mode-toggle button.is-active {
+  background: var(--navy);
+  color: white;
+}
+.question-builder {
+  display: grid;
+  gap: 1rem;
+}
+.builder-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.builder-toolbar__label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.builder-toolbar__label strong {
+  color: var(--navy);
+  font-size: 1.05rem;
+}
+.builder-toolbar__add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.builder-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.builder-note--warning {
+  color: #8a5a12;
+  background: #fdf3dc;
+  border: 1px solid #f0dcab;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+.builder-empty {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--muted);
+}
+.builder-question-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+.builder-question {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+.builder-question__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.builder-type-badge {
+  display: inline-block;
+  border-radius: 999px;
+  background: #e8eef5;
+  color: #2a4a6e;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.28rem 0.7rem;
+}
+.builder-question__actions {
+  display: flex;
+  gap: 0.35rem;
+}
+.icon-button {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.icon-button--danger:hover {
+  border-color: #d98a8a;
+  color: #852929;
+}
+.builder-question__title input {
+  font-weight: 700;
+  font-size: 1rem;
+}
+.builder-name-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.builder-name-hint code {
+  background: #f0f3f6;
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+}
+.builder-question__fields {
+  display: grid;
+  gap: 0.8rem;
+}
+.option-editor {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.8rem;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.option-editor legend {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 0 0.3rem;
+}
+.option-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.text-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--navy);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  width: fit-content;
+}
+.scale-editor {
+  display: grid;
+  gap: 0.8rem;
+}
+.scale-editor__labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.scale-picker {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  margin: 0;
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+}
+.scale-picker legend {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 0 0.3rem;
+}
+.scale-picker__option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+.condition-editor {
+  border-top: 1px dashed var(--line);
+  padding-top: 0.8rem;
+  display: grid;
+  gap: 0.6rem;
+}
+.condition-heading {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.condition-editor .field-row {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+@media (max-width: 900px) {
+  .condition-editor .field-row {
+    grid-template-columns: 1fr;
+  }
+  .scale-editor__labels {
+    grid-template-columns: 1fr;
+  }
+}

@@ -16,6 +16,9 @@ import {
   upsertSurvey,
 } from "@/modules/admin/data/admin.repository";
 import { defaultSurveySchema } from "@/modules/admin/defaultSurvey";
+import type { BuilderExtras, BuilderQuestion } from "@/modules/admin/builder/types";
+import { builderToSurveyJs, surveyJsToBuilder } from "@/modules/admin/builder/surveyBuilder";
+import { QuestionBuilder } from "@/modules/admin/components/QuestionBuilder";
 import { LoadingState } from "@/shared/AsyncState";
 
 interface SchemaDiagnostic {
@@ -110,6 +113,11 @@ export function SurveyEditorPage() {
   const [title, setTitle] = useState("New community survey");
   const [description, setDescription] = useState("Tell us about your experience.");
   const [schemaText, setSchemaText] = useState(JSON.stringify(defaultSurveySchema, null, 2));
+  const [initialBuilder] = useState(() => surveyJsToBuilder(defaultSurveySchema));
+  const [mode, setMode] = useState<"builder" | "json">("builder");
+  const [questions, setQuestions] = useState<BuilderQuestion[]>(initialBuilder.questions);
+  const [extras, setExtras] = useState<BuilderExtras>(initialBuilder.extras);
+  const [builderWarnings, setBuilderWarnings] = useState<string[]>(initialBuilder.warnings);
   const [settings, setSettings] = useState<SurveySettings>(defaultSettings);
   const [branding, setBranding] = useState<SurveyBranding>(defaultBranding);
   const [closesAtInput, setClosesAtInput] = useState("");
@@ -136,6 +144,10 @@ export function SurveyEditorPage() {
         setTitle(survey.title);
         setDescription(survey.description);
         setSchemaText(JSON.stringify(survey.schema, null, 2));
+        const parsed = surveyJsToBuilder(survey.schema);
+        setQuestions(parsed.questions);
+        setExtras(parsed.extras);
+        setBuilderWarnings(parsed.warnings);
         setSettings(survey.settings);
         setBranding(survey.branding);
         setClosesAtInput(toLocalDateTime(survey.settings.closesAt));
@@ -173,9 +185,27 @@ export function SurveyEditorPage() {
     };
   }, [activeOrgId, routeSurveyId]);
 
+  const builderSchema = useMemo<ReturnType<typeof builderToSurveyJs>>(
+    () => builderToSurveyJs(questions, { title, description, extras }),
+    [description, extras, questions, title],
+  );
+
   const preview = useMemo(() => {
+    let parsed: unknown;
+    if (mode === "builder") {
+      parsed = builderSchema;
+    } else {
+      try {
+        parsed = JSON.parse(schemaText);
+      } catch (previewError) {
+        return {
+          model: null,
+          error: previewError instanceof Error ? previewError.message : "Invalid SurveyJS JSON.",
+          diagnostics: [],
+        };
+      }
+    }
     try {
-      const parsed: unknown = JSON.parse(schemaText);
       const model = new Model(parsed);
       model.setDevice(previewMode);
       return { model, error: "", diagnostics: analyzeSurveySchema(parsed) };
@@ -186,15 +216,33 @@ export function SurveyEditorPage() {
         diagnostics: [],
       };
     }
-  }, [previewMode, schemaText]);
+  }, [builderSchema, mode, previewMode, schemaText]);
 
   const hasBlockingDiagnostics = preview.diagnostics.some(
     (diagnostic) => diagnostic.level === "error",
   );
 
+  function switchMode(nextMode: "builder" | "json") {
+    if (nextMode === mode) return;
+    if (nextMode === "json") {
+      setSchemaText(JSON.stringify(builderSchema, null, 2));
+    } else {
+      try {
+        const parsed = surveyJsToBuilder(JSON.parse(schemaText));
+        setQuestions(parsed.questions);
+        setExtras(parsed.extras);
+        setBuilderWarnings(parsed.warnings);
+      } catch {
+        setError("The JSON is invalid; fix it before switching to the visual builder.");
+        return;
+      }
+    }
+    setMode(nextMode);
+  }
+
   function buildInput() {
     if (!activeOrgId) throw new Error("No organization selected.");
-    const parsedSchema: unknown = JSON.parse(schemaText);
+    const parsedSchema: unknown = mode === "builder" ? builderSchema : JSON.parse(schemaText);
     const responseLimit = responseLimitInput ? Number(responseLimitInput) : null;
     const closesAt = closesAtInput ? new Date(closesAtInput).toISOString() : null;
     return UpsertSurveyInputSchema.parse({
@@ -328,8 +376,8 @@ export function SurveyEditorPage() {
           </Link>
           <h1>{surveyId ? "Edit survey" : "New survey"}</h1>
           <p>
-            The JSON editor uses the free SurveyJS Form Library. Preview every branch before
-            publishing.
+            Build questions visually with conditional logic, or switch to the JSON editor. Preview
+            every branch before publishing.
           </p>
         </div>
         <span className={`status-badge status-badge--${status}`}>{status}</span>
@@ -457,21 +505,52 @@ export function SurveyEditorPage() {
           <section className="form-section">
             <div className="section-heading-row">
               <div>
-                <h2>SurveyJS schema</h2>
-                <p>Use stable question names; changing them changes reporting keys.</p>
+                <h2>Questions</h2>
+                <p>
+                  Build questions visually. Conditional logic and every answer type are supported.
+                </p>
               </div>
               {preview.error && <span className="validation-chip">Invalid JSON</span>}
             </div>
-            <label>
-              <span className="sr-only">SurveyJS JSON</span>
-              <textarea
-                className="code-editor"
-                value={schemaText}
-                onChange={(event) => setSchemaText(event.target.value)}
-                rows={30}
-                spellCheck={false}
+            <div className="editor-mode-toggle" role="tablist" aria-label="Editor mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "builder"}
+                className={mode === "builder" ? "is-active" : ""}
+                onClick={() => switchMode("builder")}
+              >
+                Visual builder
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "json"}
+                className={mode === "json" ? "is-active" : ""}
+                onClick={() => switchMode("json")}
+              >
+                JSON
+              </button>
+            </div>
+            {mode === "builder" ? (
+              <QuestionBuilder
+                questions={questions}
+                onChange={setQuestions}
+                extrasCount={extras.elements.length}
+                warnings={builderWarnings}
               />
-            </label>
+            ) : (
+              <label>
+                <span className="sr-only">SurveyJS JSON</span>
+                <textarea
+                  className="code-editor"
+                  value={schemaText}
+                  onChange={(event) => setSchemaText(event.target.value)}
+                  rows={30}
+                  spellCheck={false}
+                />
+              </label>
+            )}
             {preview.error && (
               <p className="form-error" role="alert">
                 {preview.error}
