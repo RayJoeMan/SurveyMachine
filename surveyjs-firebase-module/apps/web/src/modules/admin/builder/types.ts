@@ -15,7 +15,8 @@ export type BuilderQuestionType =
   | "single_choice"
   | "multiple_choice"
   | "yes_no"
-  | "linear_scale";
+  | "linear_scale"
+  | "photo";
 
 export const QUESTION_TYPE_LABELS: Record<BuilderQuestionType, string> = {
   short_answer: "Short answer",
@@ -25,6 +26,7 @@ export const QUESTION_TYPE_LABELS: Record<BuilderQuestionType, string> = {
   multiple_choice: "Multiple choice",
   yes_no: "Yes / No",
   linear_scale: "Linear scale (1–5 or 1–10)",
+  photo: "Photo upload",
 };
 
 export const BUILDER_QUESTION_TYPES: BuilderQuestionType[] = [
@@ -35,6 +37,7 @@ export const BUILDER_QUESTION_TYPES: BuilderQuestionType[] = [
   "multiple_choice",
   "yes_no",
   "linear_scale",
+  "photo",
 ];
 
 export type ConditionOperator =

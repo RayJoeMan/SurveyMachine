@@ -4,6 +4,7 @@ import {
   builderToSurveyJs,
   conditionToVisibleIf,
   createQuestion,
+  operatorsForQuestion,
   parseVisibleIf,
   slugifyTitle,
   surveyJsToBuilder,
@@ -124,6 +125,23 @@ describe("builderToSurveyJs question types", () => {
     expect(element.minRateDescription).toBe("Low");
     expect(element.maxRateDescription).toBe("High");
   });
+
+  it("compiles photo to a single-file image question", () => {
+    const schema = builderToSurveyJs([makeQuestion({ type: "photo", title: "Show us your gear" })], {
+      title: "T",
+      description: "D",
+    });
+    const [element] = elementsOf(schema);
+    expect(element.type).toBe("file");
+    expect(element.storeDataAsText).toBe(false);
+    expect(element.allowMultiple).toBe(false);
+    expect(element.acceptedTypes).toBe("image/*");
+    expect(element.maxSize).toBe(5 * 1024 * 1024);
+  });
+
+  it("limits photo conditions to answered/not-answered", () => {
+    expect(operatorsForQuestion("photo")).toEqual(["answered", "not_answered"]);
+  });
 });
 
 describe("conditionToVisibleIf", () => {
@@ -229,6 +247,7 @@ describe("surveyJsToBuilder round-trip", () => {
         makeQuestion({ id: "e", type: "long_answer", title: "Notes" }),
         makeQuestion({ id: "f", type: "multiple_choice", title: "Topics", options: ["1", "2"] }),
         makeQuestion({ id: "g", type: "short_answer", title: "Name" }),
+        makeQuestion({ id: "h", type: "photo", title: "Photo" }),
       ],
       { title: "My survey", description: "Desc" },
     );
@@ -236,7 +255,7 @@ describe("surveyJsToBuilder round-trip", () => {
     const parsed = surveyJsToBuilder(source);
     expect(parsed.warnings).toEqual([]);
     expect(parsed.extras.elements).toEqual([]);
-    expect(parsed.questions).toHaveLength(7);
+    expect(parsed.questions).toHaveLength(8);
 
     // Parsing regenerates stable ids; the condition must reference the
     // re-parsed single_choice question's id, not the original "a".

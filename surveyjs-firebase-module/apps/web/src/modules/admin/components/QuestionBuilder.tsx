@@ -374,6 +374,12 @@ export function QuestionBuilder({
                 </fieldset>
               )}
 
+              {question.type === "photo" && (
+                <p className="builder-note">
+                  Respondents upload a single image (max 5 MB, common image formats).
+                </p>
+              )}
+
               {question.type === "linear_scale" && (
                 <div className="scale-editor">
                   <div className="scale-editor__labels">

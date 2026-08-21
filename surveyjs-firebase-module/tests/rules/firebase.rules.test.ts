@@ -376,13 +376,43 @@ describe("Storage boundary", () => {
     );
   });
 
-  it("denies survey uploads until the upload workflow is implemented", async () => {
+  it("allows photo-question image uploads and denies invalid ones", async () => {
     await seed();
     const storage = testEnv.authenticatedContext("reporter").storage();
+
+    // Valid: small image under an unguessable token.
+    await assertSucceeds(
+      uploadBytes(
+        ref(storage, `survey-uploads/${orgId}/${surveyId}/abc123def456ghi789jkl/photo.png`),
+        new Uint8Array([1, 2, 3]),
+        { contentType: "image/png" },
+      ),
+    );
+
+    // Denied: non-image content type.
     await assertFails(
       uploadBytes(
-        ref(storage, `survey-uploads/${orgId}/${surveyId}/reporter/file.txt`),
+        ref(storage, `survey-uploads/${orgId}/${surveyId}/abc123def456ghi789jkl/file.txt`),
         new Uint8Array([1]),
+        { contentType: "text/plain" },
+      ),
+    );
+
+    // Denied: short / guessable token.
+    await assertFails(
+      uploadBytes(
+        ref(storage, `survey-uploads/${orgId}/${surveyId}/reporter/photo.png`),
+        new Uint8Array([1]),
+        { contentType: "image/png" },
+      ),
+    );
+
+    // Denied: oversized image.
+    await assertFails(
+      uploadBytes(
+        ref(storage, `survey-uploads/${orgId}/${surveyId}/abc123def456ghi789jkl/big.png`),
+        new Uint8Array(6 * 1024 * 1024),
+        { contentType: "image/png" },
       ),
     );
   });

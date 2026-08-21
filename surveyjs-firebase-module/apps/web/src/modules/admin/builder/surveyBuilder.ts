@@ -74,6 +74,8 @@ export function operatorsForQuestion(type: BuilderQuestionType): ConditionOperat
       return ["equals", "not_equals", "greater_than", "less_than", "answered", "not_answered"];
     case "yes_no":
       return ["equals", "not_equals", "answered", "not_answered"];
+    case "photo":
+      return ["answered", "not_answered"];
     default:
       return ["equals", "not_equals", "contains", "not_contains", "answered", "not_answered"];
   }
@@ -184,6 +186,14 @@ export function builderToSurveyJs(
         if (question.minLabel.trim()) base.minRateDescription = question.minLabel.trim();
         if (question.maxLabel.trim()) base.maxRateDescription = question.maxLabel.trim();
         break;
+      case "photo":
+        base.type = "file";
+        base.storeDataAsText = false;
+        base.allowMultiple = false;
+        base.acceptedTypes = "image/*";
+        base.maxSize = 5 * 1024 * 1024;
+        base.maxSizeExceededMessage = "Please upload an image smaller than 5 MB.";
+        break;
     }
     const visibleIf = resolveVisibleIf(question, questions, nameById);
     if (visibleIf) base.visibleIf = visibleIf;
@@ -222,6 +232,7 @@ function elementToBuilder(item: Record<string, unknown>): RawElement | null {
   else if (type === "checkbox") questionType = "multiple_choice";
   else if (type === "boolean") questionType = "yes_no";
   else if (type === "rating") questionType = "linear_scale";
+  else if (type === "file") questionType = "photo";
   if (!questionType) return null;
 
   let options: string[] = [];

@@ -32,10 +32,14 @@ service firebase.storage {
         && request.resource.contentType.matches('image/(png|jpeg|webp)');
     }
 
-    // File-question uploads are intentionally denied until the signed upload,
-    // malware/content review, quota, retention, and anonymous-session design is implemented.
-    match /survey-uploads/{allPaths=**} {
-      allow read, write: if false;
+    // Photo-question uploads. Respondents (including anonymous) upload a single
+    // image under an unguessable random token path. Reads are public so the survey
+    // can display the image back to the respondent; type + size are enforced.
+    match /survey-uploads/{orgId}/{surveyId}/{token}/{fileName} {
+      allow read: if true;
+      allow write: if token.matches('^[A-Za-z0-9_-]{16,}$')
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(png|jpeg|jpg|webp|gif|heic|heif|bmp|avif)');
     }
 
     match /{allPaths=**} {

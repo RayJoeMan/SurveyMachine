@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Model } from "survey-core";
 import { Survey } from "survey-react-ui";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { storage } from "@/firebase/client";
 import type { PublicSurvey } from "@/contracts";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { saveSurveyProgress, submitSurveyResponse } from "@/modules/surveys/data/responses.api";
@@ -36,6 +38,39 @@ export function SurveyRunner({ publicSurvey }: { publicSurvey: PublicSurvey }) {
     survey.locale = publicSurvey.settings.locale;
     survey.showCompletedPage = false;
     survey.data = loadLocalAnswers(publicSurvey.publicSurveyId);
+
+    // Photo questions: upload each file to Firebase Storage under an
+    // unguessable token path and store the download URL in the answer.
+    survey.onUploadFiles.add((_survey, options) => {
+      const token = crypto.randomUUID();
+      const uploads = options.files.map(async (file) => {
+        const safeName = file.name.replace(/[/\\]/g, "_");
+        const fileRef = ref(
+          storage,
+          `survey-uploads/${publicSurvey.orgId}/${publicSurvey.surveyId}/${token}/${safeName}`,
+        );
+        await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(fileRef);
+        return { file: file.name, content: null, url };
+      });
+      Promise.all(uploads)
+        .then((files) => options.callback(files, null))
+        .catch((error: unknown) => {
+          console.error("Photo upload failed", error);
+          options.callback(null, ["The photo could not be uploaded. Try a smaller image."]);
+        });
+    });
+
+    // Serve stored URLs back to SurveyJS so saved answers re-render.
+    survey.onDownloadFile.add((_survey, options) => {
+      const url = options.content || options.fileValue?.url;
+      if (url) {
+        options.callback("success", url);
+      } else {
+        options.callback("error", "File not found.");
+      }
+    });
+
     return survey;
   }, [publicSurvey]);
 

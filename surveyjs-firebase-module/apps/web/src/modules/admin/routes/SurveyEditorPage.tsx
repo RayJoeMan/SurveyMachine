@@ -62,14 +62,6 @@ function analyzeSurveySchema(schema: unknown): SchemaDiagnostic[] {
   if (questions.some((question) => !question.name)) {
     diagnostics.push({ level: "error", message: "Every question requires a stable name." });
   }
-  for (const question of questions) {
-    if (question.type === "file") {
-      diagnostics.push({
-        level: "error",
-        message: `File question "${String(question.name)}" cannot be used while uploads are disabled.`,
-      });
-    }
-  }
   if (questions.length > 500) {
     diagnostics.push({ level: "warning", message: "Surveys are limited to 500 questions." });
   }
